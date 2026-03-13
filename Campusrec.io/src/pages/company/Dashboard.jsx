@@ -174,11 +174,9 @@ export default function CompanyDashboard() {
       else if (isEditing) payload.minExperienceYears = null;
 
       if (interviewStartTime.trim()) payload.interviewStartTime = interviewStartTime.trim();
-      else if (isEditing) payload.interviewStartTime = null;
 
       if (interviewCandidatesPerDay !== '')
         payload.interviewCandidatesPerDay = Number(interviewCandidatesPerDay);
-      else if (isEditing) payload.interviewCandidatesPerDay = null;
 
       if (isEditing) {
         await api.put(`/jobs/${editingJobId}`, payload);
