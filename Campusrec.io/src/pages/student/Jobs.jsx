@@ -159,9 +159,11 @@ const Jobs = () => {
         .toLowerCase()
         .includes('remote')
     ).length;
+    const eligible = jobs.filter((job) => Boolean(job?.matchSummary?.eligible)).length;
     return {
       total: jobs.length,
       remote,
+      eligible,
       filtered: hasActiveFilters,
     };
   }, [jobs, hasActiveFilters]);
@@ -188,6 +190,7 @@ const Jobs = () => {
       if (newTitle) queryParams.title = newTitle;
       if (newLocation) queryParams.location = newLocation;
       if (/^\d+$/.test(normalizedCompanyId)) queryParams.companyId = Number(normalizedCompanyId);
+      queryParams.includeIneligible = 'true';
 
       const { data } = await api.get('/jobs/eligible', { params: queryParams });
       setJobs(data);
@@ -210,6 +213,11 @@ const Jobs = () => {
   }
 
   const handleApplyClick = (job) => {
+    if (!job?.matchSummary?.eligible) {
+      toast.warning('You cannot apply yet. Please meet the listed requirements first.');
+      return;
+    }
+
     setSelectedJob(job);
     setApplicationData({
       name: user?.name || '',
@@ -354,11 +362,7 @@ const Jobs = () => {
                 {stats.remote} remote roles
               </div>
               <div className="student-jobs-stat rounded-lg border border-white/20 bg-white/10 px-3 py-2">
-                {stats.filtered
-                  ? companyIdFilter
-                    ? 'Company filter active'
-                    : 'Filters active'
-                  : 'All listings'}
+                {stats.eligible} eligible for apply
               </div>
             </div>
           </div>
@@ -390,6 +394,12 @@ const Jobs = () => {
                       .map((item) => String(item || '').trim())
                       .filter(Boolean)
                   : [];
+                const eligibilityReasons = Array.isArray(job?.matchSummary?.reasons)
+                  ? job.matchSummary.reasons
+                      .map((item) => String(item || '').trim())
+                      .filter(Boolean)
+                  : [];
+                const isEligible = Boolean(job?.matchSummary?.eligible);
 
                 return (
                   <article
@@ -437,6 +447,15 @@ const Jobs = () => {
                             {Math.round(Number(job.matchScore))}% match
                           </span>
                         )}
+                        <span
+                          className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                            isEligible
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                              : 'border-rose-200 bg-rose-50 text-rose-700'
+                          }`}
+                        >
+                          {isEligible ? 'Eligible' : 'Not eligible'}
+                        </span>
                       </div>
 
                       <h3
@@ -502,6 +521,18 @@ const Jobs = () => {
                             Matched skills: {matchedSkills.join(', ')}
                           </p>
                         )}
+                        {!isEligible && eligibilityReasons.length > 0 && (
+                          <div className="mt-2 rounded-md border border-rose-200 bg-rose-50 p-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">
+                              Why you cannot apply
+                            </p>
+                            <ul className="mt-1 space-y-1 text-xs text-rose-800">
+                              {eligibilityReasons.map((reason) => (
+                                <li key={`${job.id}-reason-${reason}`}>{reason}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
 
                       <div
@@ -521,9 +552,10 @@ const Jobs = () => {
                         <button
                           type="button"
                           onClick={() => handleApplyClick(job)}
-                          className={`student-job-apply-btn inline-flex items-center justify-center rounded-lg bg-gradient-to-r px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${typeTheme.cta}`}
+                          disabled={!isEligible}
+                          className={`student-job-apply-btn inline-flex items-center justify-center rounded-lg bg-gradient-to-r px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 ${typeTheme.cta}`}
                         >
-                          Apply Now
+                          {isEligible ? 'Apply Now' : 'Locked'}
                         </button>
                       </div>
                     </div>
@@ -535,8 +567,7 @@ const Jobs = () => {
             <div className="empty-shell">
               <h3 className="text-lg font-semibold text-gray-900">No jobs found</h3>
               <p className="mt-1 text-sm text-gray-600">
-                No eligible jobs match your profile right now. Update profile skills, degree, age,
-                experience, and resume, then try again.
+                No jobs match your current search filters. Try clearing filters and searching again.
               </p>
               <button type="button" onClick={() => loadJobs('', '', '')} className="btn-brand mt-4">
                 Clear Filters

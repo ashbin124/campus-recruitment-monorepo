@@ -139,6 +139,7 @@ const listJobsQuerySchema = z.object({
   position: z.string().trim().max(120).optional(),
   location: z.string().trim().max(120).optional(),
   companyId: z.coerce.number().int().positive().optional(),
+  includeIneligible: z.string().trim().optional(),
 });
 
 const createJobSchema = z.object({
@@ -243,6 +244,8 @@ router.get(
   validate(listJobsQuerySchema, 'query'),
   async (req, res) => {
     try {
+      const includeIneligible = String(req.query?.includeIneligible || '').toLowerCase() === 'true';
+
       const student = await prisma.studentProfile.findUnique({
         where: { userId: req.user.id },
         include: { user: true },
@@ -257,22 +260,24 @@ router.get(
       });
 
       const resumeText = await extractResumeText(student.resumeUrl);
-      const eligibleJobs = jobs
-        .map((job) => {
-          const evaluation = evaluateJobEligibility({ job, student, resumeText });
-          return {
-            ...job,
-            matchScore: evaluation.score,
-            matchSummary: {
-              eligible: evaluation.eligible,
-              reasons: evaluation.reasons,
-              matchedSkills: evaluation.matchedSkills,
-            },
-          };
-        })
-        .filter((job) => job.matchSummary.eligible);
+      const evaluatedJobs = jobs.map((job) => {
+        const evaluation = evaluateJobEligibility({ job, student, resumeText });
+        return {
+          ...job,
+          matchScore: evaluation.score,
+          matchSummary: {
+            eligible: evaluation.eligible,
+            reasons: evaluation.reasons,
+            matchedSkills: evaluation.matchedSkills,
+          },
+        };
+      });
 
-      return res.json(eligibleJobs);
+      const responseJobs = includeIneligible
+        ? evaluatedJobs
+        : evaluatedJobs.filter((job) => job.matchSummary.eligible);
+
+      return res.json(responseJobs);
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: 'Server error' });
