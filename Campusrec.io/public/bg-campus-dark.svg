@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="base" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#020617" />
+      <stop offset="45%" stop-color="#0b1124" />
+      <stop offset="100%" stop-color="#111827" />
+    </linearGradient>
+    <radialGradient id="glowA" cx="18%" cy="12%" r="48%">
+      <stop offset="0%" stop-color="#2563eb" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#2563eb" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="glowB" cx="86%" cy="20%" r="44%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="glowC" cx="56%" cy="90%" r="56%">
+      <stop offset="0%" stop-color="#4338ca" stop-opacity="0.28" />
+      <stop offset="100%" stop-color="#4338ca" stop-opacity="0" />
+    </radialGradient>
+    <pattern id="grid" width="84" height="84" patternUnits="userSpaceOnUse">
+      <path d="M84 0H0V84" fill="none" stroke="#93c5fd" stroke-opacity="0.1" stroke-width="1" />
+    </pattern>
+    <linearGradient id="wave" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#2563eb" stop-opacity="0.22" />
+      <stop offset="50%" stop-color="#06b6d4" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#14b8a6" stop-opacity="0.2" />
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#base)" />
+  <rect width="1920" height="1080" fill="url(#glowA)" />
+  <rect width="1920" height="1080" fill="url(#glowB)" />
+  <rect width="1920" height="1080" fill="url(#glowC)" />
+  <path
+    d="M-110 744 C 220 590, 420 896, 760 742 C 1000 634, 1240 805, 1510 694 C 1730 600, 1860 720, 2030 672 L 2030 1150 L -110 1150 Z"
+    fill="url(#wave)"
+  />
+  <rect width="1920" height="1080" fill="url(#grid)" />
+</svg>

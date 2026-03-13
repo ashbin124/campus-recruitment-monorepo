@@ -1,0 +1,13 @@
+{
+  "name": "campus-recruitment-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "start:all": "bash scripts/start-all.sh",
+    "start:backend": "cd Campus-back && npm run dev",
+    "start:frontend": "cd Campusrec.io && npm run dev -- --host 0.0.0.0",
+    "check:backend": "cd Campus-back && npm run lint && npm run format:check && npm test",
+    "check:frontend": "cd Campusrec.io && npm run lint && npm run format:check && npm run build",
+    "check:all": "npm run check:backend && npm run check:frontend"
+  }
+}

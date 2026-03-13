@@ -1,0 +1,823 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --container: 1240px;
+  --bg-soft: #edf3fb;
+  --bg-grid: rgba(15, 23, 42, 0.05);
+  --surface-glass: rgba(255, 255, 255, 0.9);
+  --bg-image: url('/bg-campus-light.svg');
+  --bg-overlay:
+    radial-gradient(circle at 100% -10%, rgba(37, 99, 235, 0.26), transparent 42%),
+    radial-gradient(circle at -4% 104%, rgba(6, 182, 212, 0.14), transparent 40%),
+    radial-gradient(circle at 52% 5%, rgba(14, 165, 233, 0.1), transparent 36%),
+    linear-gradient(rgba(248, 250, 252, 0.18), rgba(241, 245, 249, 0.28));
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+  background: linear-gradient(var(--bg-soft), var(--bg-soft));
+  color: rgb(15 23 42);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Sora', 'Manrope', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: inherit;
+}
+
+#root {
+  isolation: isolate;
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+@layer components {
+  .app-shell {
+    @apply relative flex min-h-screen flex-col;
+  }
+
+  .app-shell::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background-image: var(--bg-overlay), var(--bg-image);
+    background-size: cover, cover;
+    background-position: center, center;
+    background-repeat: no-repeat, no-repeat;
+    opacity: 0.95;
+  }
+
+  .app-shell::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, var(--bg-grid) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--bg-grid) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: radial-gradient(ellipse at 50% 35%, black 36%, transparent 82%);
+  }
+
+  .page-wrap {
+    @apply container mx-auto w-full max-w-[var(--container)] px-4 md:px-6;
+  }
+
+  .role-main {
+    @apply flex-1 py-8 md:py-10;
+  }
+
+  .role-content {
+    @apply page-wrap;
+  }
+
+  .workspace-header {
+    @apply sticky top-0 z-30 border-b border-slate-200/85 bg-white/90 shadow-sm backdrop-blur;
+  }
+
+  .workspace-header-inner {
+    @apply page-wrap flex h-16 items-center justify-between;
+  }
+
+  .workspace-brand {
+    @apply flex items-center gap-3;
+  }
+
+  .workspace-mark {
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 via-brand-700 to-cyan-700 text-sm font-bold text-white shadow-md ring-1 ring-brand-700/50;
+  }
+
+  .workspace-title {
+    @apply block text-sm font-semibold text-slate-900;
+  }
+
+  .workspace-subtitle {
+    @apply block text-xs font-medium uppercase tracking-wide text-slate-500;
+  }
+
+  .mobile-nav-toggle {
+    @apply inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
+  }
+
+  .mobile-nav-panel {
+    @apply border-t border-slate-200/80 bg-white/95 backdrop-blur;
+  }
+
+  .surface-card {
+    @apply rounded-xl border border-slate-200/85 bg-white/90 shadow-sm backdrop-blur;
+  }
+
+  .surface-panel {
+    @apply rounded-xl border border-slate-200/85 bg-white/90 shadow-sm backdrop-blur;
+  }
+
+  .panel-muted {
+    @apply rounded-xl border border-slate-200 bg-slate-50/90;
+  }
+
+  .hero-shell {
+    @apply rounded-xl border border-white/10 bg-gradient-to-r from-slate-900 to-slate-800 p-5 text-white shadow-sm;
+  }
+
+  .section-shell {
+    @apply surface-card p-6 md:p-7;
+  }
+
+  .section-head {
+    @apply flex flex-col gap-2 md:flex-row md:items-end md:justify-between;
+  }
+
+  .section-kicker {
+    @apply text-xs font-semibold uppercase tracking-[0.15em] text-brand-700;
+  }
+
+  .section-title {
+    @apply text-2xl font-semibold text-slate-900;
+  }
+
+  .section-description {
+    @apply text-sm text-slate-600;
+  }
+
+  .metric-grid {
+    @apply grid gap-4 sm:grid-cols-2 xl:grid-cols-4;
+  }
+
+  .metric-tile {
+    @apply rounded-lg border border-slate-200 bg-white/90 p-4 shadow-sm;
+  }
+
+  .metric-label {
+    @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+
+  .metric-value {
+    @apply mt-2 text-2xl font-semibold text-slate-900;
+  }
+
+  .metric-note {
+    @apply mt-1 text-xs text-slate-500;
+  }
+
+  .toolbar-shell {
+    @apply surface-card p-4;
+  }
+
+  .segmented-switch {
+    @apply inline-flex w-full rounded-lg border border-slate-200 bg-slate-100/90 p-1 sm:w-auto;
+  }
+
+  .segment-btn {
+    @apply rounded-md px-3 py-2 text-sm font-semibold transition;
+  }
+
+  .segment-btn-active {
+    @apply bg-white text-slate-900 shadow-sm;
+  }
+
+  .segment-btn-idle {
+    @apply text-slate-600 hover:text-slate-900;
+  }
+
+  .empty-shell {
+    @apply rounded-xl border border-dashed border-slate-300 bg-slate-50/80 p-8 text-center text-sm text-slate-500;
+  }
+
+  .chip-nav {
+    @apply inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-semibold transition;
+  }
+
+  .chip-nav-active {
+    @apply border-brand-600 bg-gradient-to-r from-brand-600 to-brand-700 text-white shadow-sm;
+  }
+
+  .chip-nav-idle {
+    @apply border-slate-200 bg-white/95 text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50;
+  }
+
+  .btn-soft {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
+  }
+
+  .btn-brand {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
+  }
+
+  .btn-dark {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2;
+  }
+
+  .input-field {
+    @apply w-full rounded-lg border border-slate-300 bg-white/95 px-3 py-2 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100;
+  }
+
+  .select-field {
+    @apply input-field pr-8;
+  }
+
+  .textarea-field {
+    @apply input-field min-h-[110px];
+  }
+
+  .status-pill {
+    @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold;
+  }
+
+  .theme-toggle {
+    @apply inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white/95 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
+  }
+
+  .theme-toggle-compact {
+    @apply px-2.5 py-2;
+  }
+}
+
+.Toastify__toast {
+  border-radius: 0.8rem;
+  font-size: 0.875rem;
+}
+
+.Toastify__toast-body {
+  line-height: 1.45;
+}
+
+.student-jobs-search-shell {
+  border-color: rgba(147, 197, 253, 0.58);
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.94), rgba(239, 246, 255, 0.94));
+  box-shadow: 0 16px 32px rgba(30, 64, 175, 0.14);
+}
+
+.student-jobs-search-shell .input-field {
+  border-color: rgba(148, 163, 184, 0.5);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.student-jobs-search-shell .input-field:focus {
+  border-color: rgba(59, 130, 246, 0.7);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
+}
+
+.student-jobs-stat {
+  backdrop-filter: blur(1px);
+}
+
+.student-jobs-results-shell {
+  border-color: rgba(148, 163, 184, 0.45);
+  background: linear-gradient(165deg, rgba(241, 245, 249, 0.88), rgba(226, 232, 240, 0.82));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 20px 42px rgba(15, 23, 42, 0.1);
+}
+
+.student-job-card,
+.company-job-card {
+  --job-card-bg-a: #f5f9ff;
+  --job-card-bg-b: #e9f0ff;
+  --job-card-border: rgba(96, 165, 250, 0.45);
+  --job-card-soft-bg: rgba(255, 255, 255, 0.74);
+  --job-card-soft-border: rgba(148, 163, 184, 0.5);
+  border-color: var(--job-card-border);
+  background: linear-gradient(160deg, var(--job-card-bg-a), var(--job-card-bg-b));
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.14);
+}
+
+.student-job-card[data-job-type*='INTERNSHIP'],
+.company-job-card[data-job-type*='INTERNSHIP'] {
+  --job-card-bg-a: #effcff;
+  --job-card-bg-b: #dff4ff;
+  --job-card-border: rgba(34, 211, 238, 0.45);
+}
+
+.student-job-card[data-job-type*='PART'],
+.company-job-card[data-job-type*='PART'] {
+  --job-card-bg-a: #effff7;
+  --job-card-bg-b: #dcfce7;
+  --job-card-border: rgba(16, 185, 129, 0.42);
+}
+
+.student-job-card[data-job-type*='CONTRACT'],
+.company-job-card[data-job-type*='CONTRACT'] {
+  --job-card-bg-a: #f1f5ff;
+  --job-card-bg-b: #e5e8ff;
+  --job-card-border: rgba(129, 140, 248, 0.46);
+}
+
+.student-job-company,
+.student-job-title,
+.student-job-meta,
+.student-job-description,
+.student-job-actions,
+.company-job-meta,
+.company-job-description {
+  border-color: var(--job-card-soft-border);
+  background: linear-gradient(145deg, var(--job-card-soft-bg), rgba(255, 255, 255, 0.84));
+}
+
+.student-job-avatar {
+  border-color: rgba(148, 163, 184, 0.42);
+  background: rgba(226, 232, 240, 0.9);
+  color: rgb(51 65 85);
+}
+
+.student-job-chip-location,
+.company-job-chip-location {
+  border-color: rgba(125, 211, 252, 0.92);
+  background: linear-gradient(130deg, rgba(224, 242, 254, 0.96), rgba(186, 230, 253, 0.92));
+  color: rgb(3 105 161);
+}
+
+.student-job-chip-date,
+.company-job-chip-date {
+  border-color: rgba(253, 186, 116, 0.92);
+  background: linear-gradient(130deg, rgba(254, 243, 199, 0.98), rgba(254, 215, 170, 0.92));
+  color: rgb(154 52 18);
+}
+
+.student-job-chip-mode.border-cyan-200,
+.company-job-chip-mode.border-cyan-200 {
+  border-color: rgba(103, 232, 249, 0.92);
+  background: linear-gradient(130deg, rgba(236, 254, 255, 0.98), rgba(207, 250, 254, 0.9));
+  color: rgb(12 74 110);
+}
+
+.student-job-chip-mode.border-slate-300,
+.company-job-chip-mode.border-slate-300 {
+  border-color: rgba(148, 163, 184, 0.75);
+  background: linear-gradient(130deg, rgba(241, 245, 249, 0.96), rgba(226, 232, 240, 0.92));
+  color: rgb(51 65 85);
+}
+
+.company-job-title,
+.student-job-company-name {
+  color: rgb(30 41 59);
+}
+
+.student-job-company-label,
+.student-job-description-label,
+.company-job-description-label {
+  color: rgb(100 116 139);
+}
+
+html.theme-dark {
+  --bg-soft: #0a1120;
+  --bg-grid: rgba(148, 163, 184, 0.09);
+  --bg-image: url('/bg-campus-dark.svg');
+  --bg-overlay:
+    radial-gradient(circle at 100% -10%, rgba(37, 99, 235, 0.3), transparent 42%),
+    radial-gradient(circle at -4% 104%, rgba(6, 182, 212, 0.18), transparent 40%),
+    radial-gradient(circle at 50% 2%, rgba(14, 165, 233, 0.12), transparent 36%),
+    linear-gradient(rgba(2, 6, 23, 0.24), rgba(2, 6, 23, 0.5));
+}
+
+html.theme-dark body {
+  background: linear-gradient(var(--bg-soft), var(--bg-soft));
+  color: rgb(226 232 240);
+}
+
+html.theme-dark ::selection {
+  background: rgba(59, 130, 246, 0.3);
+}
+
+html.theme-dark .workspace-header {
+  border-color: rgba(71, 85, 105, 0.7);
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: 0 2px 12px rgba(2, 6, 23, 0.35);
+}
+
+html.theme-dark .workspace-title {
+  color: rgb(226 232 240);
+}
+
+html.theme-dark .workspace-subtitle {
+  color: rgb(148 163 184);
+}
+
+html.theme-dark .mobile-nav-toggle {
+  border-color: rgba(71, 85, 105, 0.9);
+  background: rgba(30, 41, 59, 0.95);
+  color: rgb(226 232 240);
+}
+
+html.theme-dark .mobile-nav-panel {
+  border-color: rgba(71, 85, 105, 0.7);
+  background: rgba(15, 23, 42, 0.96);
+}
+
+html.theme-dark .surface-card {
+  border-color: rgba(71, 85, 105, 0.7);
+  background: rgba(15, 23, 42, 0.84);
+  box-shadow: 0 8px 22px rgba(2, 6, 23, 0.36);
+}
+
+html.theme-dark .surface-panel {
+  border-color: rgba(71, 85, 105, 0.75);
+  background: rgba(30, 41, 59, 0.86);
+  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.3);
+}
+
+html.theme-dark .panel-muted {
+  border-color: rgba(71, 85, 105, 0.7);
+  background: rgba(30, 41, 59, 0.85);
+}
+
+html.theme-dark .hero-shell {
+  border-color: rgba(96, 165, 250, 0.25);
+  background: linear-gradient(135deg, rgba(2, 6, 23, 0.95), rgba(15, 23, 42, 0.94));
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.42);
+}
+
+html.theme-dark .section-kicker {
+  color: rgb(125 211 252);
+}
+
+html.theme-dark .section-title {
+  color: rgb(241 245 249);
+}
+
+html.theme-dark .section-description {
+  color: rgb(148 163 184);
+}
+
+html.theme-dark .metric-tile {
+  border-color: rgba(71, 85, 105, 0.75);
+  background: rgba(30, 41, 59, 0.84);
+}
+
+html.theme-dark .metric-label,
+html.theme-dark .metric-note {
+  color: rgb(148 163 184);
+}
+
+html.theme-dark .metric-value {
+  color: rgb(241 245 249);
+}
+
+html.theme-dark .toolbar-shell {
+  background: rgba(15, 23, 42, 0.84);
+}
+
+html.theme-dark .segmented-switch {
+  border-color: rgba(71, 85, 105, 0.75);
+  background: rgba(30, 41, 59, 0.82);
+}
+
+html.theme-dark .segment-btn-active {
+  background: rgba(51, 65, 85, 0.9);
+  color: rgb(241 245 249);
+}
+
+html.theme-dark .segment-btn-idle {
+  color: rgb(148 163 184);
+}
+
+html.theme-dark .segment-btn-idle:hover {
+  color: rgb(241 245 249);
+}
+
+html.theme-dark .empty-shell {
+  border-color: rgba(71, 85, 105, 0.75);
+  background: rgba(30, 41, 59, 0.72);
+  color: rgb(148 163 184);
+}
+
+html.theme-dark .chip-nav-idle {
+  border-color: rgba(71, 85, 105, 0.75);
+  background: rgba(30, 41, 59, 0.9);
+  color: rgb(226 232 240);
+}
+
+html.theme-dark .chip-nav-idle:hover {
+  border-color: rgba(100, 116, 139, 0.92);
+  background: rgba(51, 65, 85, 0.95);
+}
+
+html.theme-dark .btn-soft,
+html.theme-dark .theme-toggle {
+  border-color: rgba(71, 85, 105, 0.88);
+  background: rgba(30, 41, 59, 0.92);
+  color: rgb(226 232 240);
+}
+
+html.theme-dark .btn-soft:hover,
+html.theme-dark .theme-toggle:hover {
+  background: rgba(51, 65, 85, 0.95);
+}
+
+html.theme-dark .btn-dark {
+  background: rgba(15, 23, 42, 1);
+}
+
+html.theme-dark .input-field,
+html.theme-dark .select-field,
+html.theme-dark .textarea-field {
+  border-color: rgba(71, 85, 105, 0.85);
+  background: rgba(30, 41, 59, 0.92);
+  color: rgb(241 245 249);
+  -webkit-text-fill-color: rgb(241 245 249);
+  caret-color: rgb(241 245 249);
+}
+
+html.theme-dark .input-field:-webkit-autofill,
+html.theme-dark .input-field:-webkit-autofill:hover,
+html.theme-dark .input-field:-webkit-autofill:focus,
+html.theme-dark .textarea-field:-webkit-autofill,
+html.theme-dark .textarea-field:-webkit-autofill:hover,
+html.theme-dark .textarea-field:-webkit-autofill:focus {
+  -webkit-text-fill-color: rgb(241 245 249);
+  box-shadow: 0 0 0 1000px rgba(30, 41, 59, 0.92) inset;
+}
+
+html.theme-dark .input-field::placeholder,
+html.theme-dark .textarea-field::placeholder {
+  color: rgb(148 163 184);
+}
+
+html.theme-dark .input-field:focus,
+html.theme-dark .select-field:focus,
+html.theme-dark .textarea-field:focus {
+  border-color: rgba(59, 130, 246, 0.9);
+  box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.25);
+}
+
+html.theme-dark .status-pill {
+  border-color: rgba(71, 85, 105, 0.85);
+}
+
+html.theme-dark .Toastify__toast {
+  background: rgba(15, 23, 42, 0.95);
+  color: rgb(226 232 240);
+}
+
+html.theme-dark .student-jobs-search-shell {
+  border-color: rgba(100, 116, 139, 0.76);
+  background: linear-gradient(130deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.9));
+  box-shadow: 0 18px 34px rgba(2, 6, 23, 0.5);
+}
+
+html.theme-dark .student-jobs-search-shell .input-field {
+  border-color: rgba(71, 85, 105, 0.82);
+  background: rgba(15, 23, 42, 0.86);
+}
+
+html.theme-dark .student-jobs-results-shell {
+  border-color: rgba(71, 85, 105, 0.75);
+  background: linear-gradient(165deg, rgba(2, 6, 23, 0.56), rgba(15, 23, 42, 0.74));
+  box-shadow:
+    inset 0 1px 0 rgba(100, 116, 139, 0.2),
+    0 22px 40px rgba(2, 6, 23, 0.56);
+}
+
+html.theme-dark .text-gray-900,
+html.theme-dark .text-slate-900 {
+  color: rgb(241 245 249) !important;
+}
+
+html.theme-dark .text-gray-700,
+html.theme-dark .text-slate-700 {
+  color: rgb(203 213 225) !important;
+}
+
+html.theme-dark .text-gray-600,
+html.theme-dark .text-slate-600 {
+  color: rgb(148 163 184) !important;
+}
+
+html.theme-dark .text-gray-500,
+html.theme-dark .text-slate-500 {
+  color: rgb(148 163 184) !important;
+}
+
+html.theme-dark .bg-gray-50,
+html.theme-dark .bg-slate-50 {
+  background-color: rgba(30, 41, 59, 0.72) !important;
+}
+
+html.theme-dark .bg-gray-100,
+html.theme-dark .bg-slate-100 {
+  background-color: rgba(51, 65, 85, 0.86) !important;
+}
+
+html.theme-dark .bg-white,
+html.theme-dark .bg-white\/95,
+html.theme-dark .bg-white\/90,
+html.theme-dark .bg-white\/85,
+html.theme-dark .bg-white\/80,
+html.theme-dark .bg-white\/70 {
+  background-color: rgba(15, 23, 42, 0.92) !important;
+}
+
+html.theme-dark .from-white {
+  --tw-gradient-from: rgba(15, 23, 42, 0.95) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(15, 23, 42, 0) var(--tw-gradient-to-position) !important;
+}
+
+html.theme-dark .via-white {
+  --tw-gradient-to: rgba(15, 23, 42, 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops:
+    var(--tw-gradient-from), rgba(15, 23, 42, 0.92) var(--tw-gradient-via-position),
+    var(--tw-gradient-to) !important;
+}
+
+html.theme-dark .to-white {
+  --tw-gradient-to: rgba(15, 23, 42, 0.9) var(--tw-gradient-to-position) !important;
+}
+
+html.theme-dark .from-slate-50,
+html.theme-dark .from-gray-50 {
+  --tw-gradient-from: rgba(30, 41, 59, 0.92) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(30, 41, 59, 0) var(--tw-gradient-to-position) !important;
+}
+
+html.theme-dark .to-slate-50,
+html.theme-dark .to-gray-50 {
+  --tw-gradient-to: rgba(30, 41, 59, 0.88) var(--tw-gradient-to-position) !important;
+}
+
+html.theme-dark .border-gray-200,
+html.theme-dark .border-slate-200 {
+  border-color: rgba(71, 85, 105, 0.75) !important;
+}
+
+html.theme-dark .border-gray-300,
+html.theme-dark .border-slate-300 {
+  border-color: rgba(100, 116, 139, 0.85) !important;
+}
+
+html.theme-dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+html.theme-dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(71, 85, 105, 0.7) !important;
+}
+
+html.theme-dark .text-brand-700,
+html.theme-dark .text-brand-800 {
+  color: rgb(147 197 253) !important;
+}
+
+html.theme-dark .student-job-card,
+html.theme-dark .company-job-card {
+  border-color: rgba(100, 116, 139, 0.8) !important;
+  background: linear-gradient(
+    160deg,
+    rgba(15, 23, 42, 0.97),
+    rgba(15, 23, 42, 0.92) 52%,
+    rgba(30, 41, 59, 0.9)
+  ) !important;
+  box-shadow: 0 16px 34px rgba(2, 6, 23, 0.54);
+}
+
+html.theme-dark .student-job-card:hover,
+html.theme-dark .company-job-card:hover {
+  box-shadow: 0 22px 42px rgba(2, 6, 23, 0.62);
+}
+
+html.theme-dark .student-job-company,
+html.theme-dark .student-job-title,
+html.theme-dark .student-job-meta,
+html.theme-dark .student-job-description,
+html.theme-dark .student-job-actions,
+html.theme-dark .company-job-meta,
+html.theme-dark .company-job-description {
+  border-color: rgba(100, 116, 139, 0.78) !important;
+  background: rgba(15, 23, 42, 0.68) !important;
+}
+
+html.theme-dark .student-job-avatar {
+  border-color: rgba(148, 163, 184, 0.45) !important;
+  background: rgba(51, 65, 85, 0.9) !important;
+  color: rgb(226 232 240) !important;
+}
+
+html.theme-dark .student-job-company-label,
+html.theme-dark .student-job-description-label,
+html.theme-dark .company-job-description-label {
+  color: rgb(148 163 184) !important;
+}
+
+html.theme-dark .student-job-company-name,
+html.theme-dark .company-job-title,
+html.theme-dark .student-job-title {
+  color: rgb(241 245 249) !important;
+}
+
+html.theme-dark .student-job-description,
+html.theme-dark .company-job-description {
+  color: rgb(226 232 240) !important;
+}
+
+html.theme-dark .student-job-description .text-current\/70,
+html.theme-dark .company-job-description .text-current\/70 {
+  color: rgb(148 163 184) !important;
+}
+
+html.theme-dark .student-job-view-btn {
+  border-color: rgba(100, 116, 139, 0.9) !important;
+  background: rgba(15, 23, 42, 0.86) !important;
+  color: rgb(226 232 240) !important;
+}
+
+html.theme-dark .student-job-view-btn:hover {
+  border-color: rgba(148, 163, 184, 0.92) !important;
+  background: rgba(30, 41, 59, 0.95) !important;
+}
+
+html.theme-dark .student-job-type-badge,
+html.theme-dark .company-job-type-badge {
+  border-color: rgba(96, 165, 250, 0.52) !important;
+  background: rgba(37, 99, 235, 0.2) !important;
+  color: rgb(191 219 254) !important;
+}
+
+html.theme-dark [data-job-type*='INTERNSHIP'] .student-job-type-badge,
+html.theme-dark [data-job-type*='INTERNSHIP'] .company-job-type-badge {
+  border-color: rgba(14, 165, 233, 0.48) !important;
+  background: rgba(14, 165, 233, 0.16) !important;
+  color: rgb(186 230 253) !important;
+}
+
+html.theme-dark [data-job-type*='PART'] .student-job-type-badge,
+html.theme-dark [data-job-type*='PART'] .company-job-type-badge {
+  border-color: rgba(45, 212, 191, 0.45) !important;
+  background: rgba(20, 184, 166, 0.18) !important;
+  color: rgb(153 246 228) !important;
+}
+
+html.theme-dark [data-job-type*='CONTRACT'] .student-job-type-badge,
+html.theme-dark [data-job-type*='CONTRACT'] .company-job-type-badge {
+  border-color: rgba(129, 140, 248, 0.5) !important;
+  background: rgba(99, 102, 241, 0.2) !important;
+  color: rgb(199 210 254) !important;
+}
+
+html.theme-dark .student-job-chip-location,
+html.theme-dark .company-job-chip-location {
+  border-color: rgba(56, 189, 248, 0.46) !important;
+  background: rgba(7, 89, 133, 0.32) !important;
+  color: rgb(186 230 253) !important;
+}
+
+html.theme-dark .student-job-chip-location svg,
+html.theme-dark .company-job-chip-location svg {
+  color: rgb(125 211 252) !important;
+}
+
+html.theme-dark .student-job-chip-date,
+html.theme-dark .company-job-chip-date {
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  background: rgba(120, 53, 15, 0.35) !important;
+  color: rgb(253 230 138) !important;
+}
+
+html.theme-dark .student-job-chip-date svg,
+html.theme-dark .company-job-chip-date svg {
+  color: rgb(252 211 77) !important;
+}
+
+html.theme-dark .student-job-chip-mode.border-cyan-200,
+html.theme-dark .company-job-chip-mode.border-cyan-200 {
+  border-color: rgba(52, 211, 153, 0.45) !important;
+  background: rgba(5, 46, 22, 0.5) !important;
+  color: rgb(167 243 208) !important;
+}
+
+html.theme-dark .student-job-chip-mode.border-slate-300,
+html.theme-dark .company-job-chip-mode.border-slate-300 {
+  border-color: rgba(100, 116, 139, 0.82) !important;
+  background: rgba(51, 65, 85, 0.55) !important;
+  color: rgb(203 213 225) !important;
+}
+
+html.theme-dark .company-job-applicants {
+  border-color: rgba(96, 165, 250, 0.45) !important;
+  background: rgba(30, 58, 138, 0.35) !important;
+  color: rgb(191 219 254) !important;
+}
