@@ -148,7 +148,7 @@ const Jobs = () => {
       if (newLocation) queryParams.location = newLocation;
       if (/^\d+$/.test(normalizedCompanyId)) queryParams.companyId = Number(normalizedCompanyId);
 
-      const { data } = await api.get('/jobs', { params: queryParams });
+      const { data } = await api.get('/jobs/eligible', { params: queryParams });
       setJobs(data);
 
       if (updateURL) {
@@ -385,6 +385,11 @@ const Jobs = () => {
                         >
                           {toJobTypeLabel(job.type)}
                         </span>
+                        {Number.isFinite(Number(job.matchScore)) && (
+                          <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">
+                            {Math.round(Number(job.matchScore))}% match
+                          </span>
+                        )}
                       </div>
 
                       <h3
@@ -457,7 +462,8 @@ const Jobs = () => {
             <div className="empty-shell">
               <h3 className="text-lg font-semibold text-gray-900">No jobs found</h3>
               <p className="mt-1 text-sm text-gray-600">
-                Try adjusting your filters or showing all job listings.
+                No eligible jobs match your profile right now. Update profile skills, degree, age,
+                experience, and resume, then try again.
               </p>
               <button type="button" onClick={() => loadJobs('', '', '')} className="btn-brand mt-4">
                 Clear Filters

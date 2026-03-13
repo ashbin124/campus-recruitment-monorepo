@@ -1,11 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import studentA from '../../assets/user/you.png';
 import studentB from '../../assets/user/s3.png';
+import api from '../../lib/api.js';
 
 export default function StudentDashboard() {
   const [titleQuery, setTitleQuery] = useState('');
   const [locationQuery, setLocationQuery] = useState('');
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const navigate = useNavigate();
 
   const heroImage = useMemo(() => {
@@ -36,6 +40,43 @@ export default function StudentDashboard() {
     setLocationQuery('');
     navigate('/student/jobs');
   }
+
+  async function loadNotifications() {
+    try {
+      setNotificationsLoading(true);
+      const { data } = await api.get('/notifications/me', { params: { limit: 8 } });
+      setNotifications(Array.isArray(data?.notifications) ? data.notifications : []);
+      setUnreadCount(Number(data?.unreadCount || 0));
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+      setNotifications([]);
+      setUnreadCount(0);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }
+
+  async function markNotificationRead(id) {
+    try {
+      await api.patch(`/notifications/${id}/read`);
+      await loadNotifications();
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  }
+
+  async function markAllNotificationsRead() {
+    try {
+      await api.post('/notifications/read-all');
+      await loadNotifications();
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  }
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
 
   return (
     <div className="page-wrap space-y-8 pb-10">
@@ -126,6 +167,56 @@ export default function StudentDashboard() {
           <h3 className="mt-2 text-lg font-semibold text-slate-900">Apply And Track</h3>
           <p className="mt-1 text-sm text-slate-600">Submit and monitor status updates.</p>
         </button>
+      </section>
+
+      <section className="surface-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="metric-label">In-App Notifications</p>
+            <h2 className="mt-1 text-lg font-semibold text-slate-900">
+              Interview & Application Updates
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-800">
+              {unreadCount} unread
+            </span>
+            <button
+              type="button"
+              onClick={markAllNotificationsRead}
+              className="btn-soft px-3 py-2 text-xs"
+            >
+              Mark all read
+            </button>
+          </div>
+        </div>
+
+        {notificationsLoading ? (
+          <div className="mt-4 text-sm text-slate-500">Loading notifications...</div>
+        ) : notifications.length === 0 ? (
+          <div className="mt-4 text-sm text-slate-500">No notifications yet.</div>
+        ) : (
+          <div className="mt-4 space-y-2">
+            {notifications.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => markNotificationRead(item.id)}
+                className={`w-full rounded-lg border p-3 text-left ${
+                  item.readAt
+                    ? 'border-slate-200 bg-white text-slate-700'
+                    : 'border-sky-200 bg-sky-50 text-slate-900'
+                }`}
+              >
+                <p className="text-sm font-semibold">{item.title}</p>
+                <p className="mt-1 text-sm">{item.message}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {new Date(item.createdAt).toLocaleString()}
+                </p>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

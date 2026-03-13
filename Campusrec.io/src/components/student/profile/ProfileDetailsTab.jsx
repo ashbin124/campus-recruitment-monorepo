@@ -57,6 +57,18 @@ export default function ProfileDetailsTab({
               className={`${formInputClass} ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
             />
           </LabeledInput>
+
+          <LabeledInput label="Age">
+            <input
+              type="number"
+              min="1"
+              name="age"
+              value={formData.age}
+              onChange={onInputChange}
+              disabled={!isEditing}
+              className={`${formInputClass} ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+            />
+          </LabeledInput>
         </div>
 
         <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
@@ -84,6 +96,17 @@ export default function ProfileDetailsTab({
             />
           </LabeledInput>
 
+          <LabeledInput label="Degree">
+            <input
+              type="text"
+              name="degree"
+              value={formData.degree}
+              onChange={onInputChange}
+              disabled={!isEditing}
+              className={`${formInputClass} ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+            />
+          </LabeledInput>
+
           <LabeledInput label="Experience">
             <textarea
               name="experience"
@@ -91,6 +114,18 @@ export default function ProfileDetailsTab({
               onChange={onInputChange}
               disabled={!isEditing}
               rows={3}
+              className={`${formInputClass} ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+            />
+          </LabeledInput>
+
+          <LabeledInput label="Experience Years">
+            <input
+              type="number"
+              min="0"
+              name="experienceYears"
+              value={formData.experienceYears}
+              onChange={onInputChange}
+              disabled={!isEditing}
               className={`${formInputClass} ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
             />
           </LabeledInput>

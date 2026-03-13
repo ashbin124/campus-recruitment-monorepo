@@ -50,16 +50,15 @@ export async function sendInterviewInvite(toEmail, studentName, companyName, job
       <h2>Interview Invitation</h2>
       <p>Hi ${studentName},</p>
       <p>${companyName} would like to invite you to interview for the <strong>${jobTitle}</strong> role.</p>
-      ${note ? `<p><strong>Details / Note from company:</strong><br/>${escapeHtml(note)}</p>` : ''}
+      ${note ? `<p><strong>Interview details:</strong><br/>${escapeHtml(note).replace(/\n/g, '<br/>')}</p>` : ''}
       <div style="margin-top:12px;">
-        <h3 style="margin:0 0 6px 0;">Interview Logistics</h3>
+        <h3 style="margin:0 0 6px 0;">What to Expect</h3>
         <ul>
-          <li><strong>Format:</strong> Online/Onsite (reply with your preference)</li>
-          <li><strong>Proposed date/time:</strong> Please reply with 2-3 suitable slots</li>
-          <li><strong>Location/Link:</strong> Will be shared upon confirmation</li>
+          <li><strong>Schedule:</strong> Refer to the interview details above</li>
+          <li><strong>Format:</strong> Company will share location / meeting link in app or follow-up email</li>
+          <li><strong>Documents:</strong> Keep your latest resume and academic records ready</li>
         </ul>
       </div>
-      <p>Please reply to this email to coordinate timing.</p>
       <p style="color:#6b7280; font-size:12px;">Sent on: ${new Date().toLocaleString()}</p>
       <p>Best regards,<br/>${companyName} Talent Team</p>
     </div>
@@ -67,7 +66,7 @@ export async function sendInterviewInvite(toEmail, studentName, companyName, job
   const text =
     `Hi ${studentName},\n${companyName} invites you to interview for ${jobTitle}.` +
     `${note ? `\nDetails: ${note}` : ''}` +
-    `\n\nInterview logistics:\n- Format: Online/Onsite (confirm preference)\n- Proposed date/time: Please reply with 2-3 slots\n- Location/Link: Will be shared upon confirmation\n\nPlease reply to coordinate timing.\nSent on: ${new Date().toLocaleString()}`;
+    `\n\nInterview logistics:\n- Schedule: Refer to details above\n- Format: Company will share location/link\n- Documents: Keep latest resume and academic records ready\n\nSent on: ${new Date().toLocaleString()}`;
   return sendEmail({ to: toEmail, subject, html, text });
 }
 

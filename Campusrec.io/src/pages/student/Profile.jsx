@@ -13,12 +13,15 @@ const initialFormData = {
   phone: '',
   location: '',
   education: '',
+  degree: '',
+  age: '',
   skills: '',
   bio: '',
   linkedin: '',
   github: '',
   website: '',
   experience: '',
+  experienceYears: '',
   currentPassword: '',
   newPassword: '',
   confirmPassword: '',
@@ -71,12 +74,15 @@ export default function Profile() {
         phone: userData.phone || '',
         location: userData.location || '',
         education: userData.education || '',
+        degree: userData.degree || '',
+        age: userData.age != null ? String(userData.age) : '',
         skills: normalizedSkills,
         bio: userData.bio || '',
         linkedin: userData.linkedin || '',
         github: userData.github || '',
         website: userData.website || '',
         experience: userData.experience || '',
+        experienceYears: userData.experienceYears != null ? String(userData.experienceYears) : '',
         profileImage: null,
         profileImageUrl: userData.profileImageUrl || '',
         resume: null,
@@ -165,12 +171,15 @@ export default function Profile() {
       payload.append('phone', formData.phone || '');
       payload.append('location', formData.location || '');
       payload.append('education', formData.education || '');
+      payload.append('degree', formData.degree || '');
+      payload.append('age', formData.age || '');
       payload.append('bio', formData.bio || '');
       payload.append('skills', formData.skills || '');
       payload.append('linkedin', formData.linkedin || '');
       payload.append('github', formData.github || '');
       payload.append('website', formData.website || '');
       payload.append('experience', formData.experience || '');
+      payload.append('experienceYears', formData.experienceYears || '');
 
       if (formData.profileImage) payload.append('profileImage', formData.profileImage);
       if (formData.resume) payload.append('resume', formData.resume);

@@ -6,9 +6,25 @@ export default function JobFormPanel({
   title,
   location,
   description,
+  requiredSkills,
+  requiredDegree,
+  minAge,
+  maxAge,
+  minExperienceYears,
+  interviewDates,
+  interviewStartTime,
+  interviewCandidatesPerDay,
   onTitleChange,
   onLocationChange,
   onDescriptionChange,
+  onRequiredSkillsChange,
+  onRequiredDegreeChange,
+  onMinAgeChange,
+  onMaxAgeChange,
+  onMinExperienceYearsChange,
+  onInterviewDatesChange,
+  onInterviewStartTimeChange,
+  onInterviewCandidatesPerDayChange,
   onSubmit,
   onCancel,
 }) {
@@ -63,6 +79,100 @@ export default function JobFormPanel({
             rows="5"
             placeholder="Responsibilities, required skills, and expectations"
             required
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 sm:col-span-2">
+          <span className="text-sm font-medium text-gray-700">
+            Required Skills (comma separated)
+          </span>
+          <textarea
+            value={requiredSkills}
+            onChange={(event) => onRequiredSkillsChange(event.target.value)}
+            className="textarea-field"
+            rows="2"
+            placeholder="React, Node.js, PostgreSQL"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-gray-700">Required Degree (optional)</span>
+          <input
+            value={requiredDegree}
+            onChange={(event) => onRequiredDegreeChange(event.target.value)}
+            className="input-field"
+            placeholder="B.Tech Computer Science"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-gray-700">Min Experience (years)</span>
+          <input
+            type="number"
+            min="0"
+            value={minExperienceYears}
+            onChange={(event) => onMinExperienceYearsChange(event.target.value)}
+            className="input-field"
+            placeholder="2"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-gray-700">Min Age (optional)</span>
+          <input
+            type="number"
+            min="1"
+            value={minAge}
+            onChange={(event) => onMinAgeChange(event.target.value)}
+            className="input-field"
+            placeholder="21"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-gray-700">Max Age (optional)</span>
+          <input
+            type="number"
+            min="1"
+            value={maxAge}
+            onChange={(event) => onMaxAgeChange(event.target.value)}
+            className="input-field"
+            placeholder="30"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 sm:col-span-2">
+          <span className="text-sm font-medium text-gray-700">
+            Interview Dates (comma separated YYYY-MM-DD)
+          </span>
+          <textarea
+            value={interviewDates}
+            onChange={(event) => onInterviewDatesChange(event.target.value)}
+            className="textarea-field"
+            rows="2"
+            placeholder="2026-03-20, 2026-03-27, 2026-04-03"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-gray-700">Interview Start Time</span>
+          <input
+            type="time"
+            value={interviewStartTime}
+            onChange={(event) => onInterviewStartTimeChange(event.target.value)}
+            className="input-field"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-gray-700">Candidates Per Day</span>
+          <input
+            type="number"
+            min="1"
+            value={interviewCandidatesPerDay}
+            onChange={(event) => onInterviewCandidatesPerDayChange(event.target.value)}
+            className="input-field"
+            placeholder="10"
           />
         </label>
 

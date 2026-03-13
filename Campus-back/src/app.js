@@ -11,6 +11,7 @@ import adminRoutes from './routes/admin.js';
 import uploadRoutes from './routes/upload.js';
 import studentRoutes from './routes/student.js';
 import companiesRoutes from './routes/companies.js';
+import notificationsRoutes from './routes/notifications.js';
 import { env } from './config/env.js';
 import { logError, logInfo, logWarn, serializeError } from './utils/logger.js';
 
@@ -130,6 +131,7 @@ export function createApp() {
   app.use('/api/upload', uploadRoutes);
   app.use('/api/student', studentRoutes);
   app.use('/api/companies', companiesRoutes);
+  app.use('/api/notifications', notificationsRoutes);
 
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 

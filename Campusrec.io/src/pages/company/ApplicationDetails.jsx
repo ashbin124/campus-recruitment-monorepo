@@ -21,7 +21,14 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
   const [showInterviewDialog, setShowInterviewDialog] = useState(false);
   const [interviewMessage, setInterviewMessage] = useState('');
+  const [interviewDate, setInterviewDate] = useState('');
   const [currentStatus, setCurrentStatus] = useState(application.status);
+  const [interviewSnapshot, setInterviewSnapshot] = useState({
+    interviewDate: application.interviewDate || null,
+    interviewStartTime: application.interviewStartTime || '',
+    interviewQueueNumber: application.interviewQueueNumber || null,
+    waitlistRank: application.waitlistRank || null,
+  });
   const [retryingEmail, setRetryingEmail] = useState(false);
   const [emailRetryAvailable, setEmailRetryAvailable] = useState(false);
   const [emailDeliveryLogs, setEmailDeliveryLogs] = useState([]);
@@ -33,14 +40,36 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
 
   useEffect(() => {
     setCurrentStatus(application.status);
+    setInterviewSnapshot({
+      interviewDate: application.interviewDate || null,
+      interviewStartTime: application.interviewStartTime || '',
+      interviewQueueNumber: application.interviewQueueNumber || null,
+      waitlistRank: application.waitlistRank || null,
+    });
     setRetryingEmail(false);
     setEmailRetryAvailable(false);
     setEmailDeliveryLogs([]);
     setActionNotice({ tone: 'info', message: '' });
     setInterviewMessage('');
+    setInterviewDate(
+      application?.interviewDate
+        ? String(application.interviewDate).slice(0, 10)
+        : Array.isArray(application?.job?.interviewDates) &&
+            application.job.interviewDates.length > 0
+          ? String(application.job.interviewDates[0]).slice(0, 10)
+          : ''
+    );
     setShowRejectConfirm(false);
     setShowInterviewDialog(false);
-  }, [application.id, application.status]);
+  }, [
+    application.id,
+    application.status,
+    application.interviewDate,
+    application.interviewStartTime,
+    application.interviewQueueNumber,
+    application.waitlistRank,
+    application.job?.interviewDates,
+  ]);
 
   useEffect(() => {
     const raf = window.requestAnimationFrame(() => {
@@ -77,6 +106,14 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
         result?.application?.status ||
         (typeof statusPayload === 'string' ? statusPayload : statusPayload?.status);
       if (updatedStatus) setCurrentStatus(updatedStatus);
+      if (result?.application) {
+        setInterviewSnapshot({
+          interviewDate: result.application.interviewDate || null,
+          interviewStartTime: result.application.interviewStartTime || '',
+          interviewQueueNumber: result.application.interviewQueueNumber || null,
+          waitlistRank: result.application.waitlistRank || null,
+        });
+      }
 
       const emailInfo = result?.emailNotification;
       const hasEmailFailure = Boolean(emailInfo?.attempted && !emailInfo?.sent);
@@ -134,6 +171,7 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
   const getStatusBadge = (status) => {
     const statusMap = {
       PENDING: 'border-amber-200 bg-amber-100 text-amber-800',
+      WAITLIST: 'border-violet-200 bg-violet-100 text-violet-800',
       ACCEPTED: 'border-emerald-200 bg-emerald-100 text-emerald-800',
       INTERVIEW: 'border-brand-200 bg-brand-100 text-brand-800',
       APPROVED: 'border-emerald-200 bg-emerald-100 text-emerald-800',
@@ -314,6 +352,38 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
                 </div>
               </div>
 
+              {(currentStatus === 'INTERVIEW' || currentStatus === 'WAITLIST') && (
+                <div className="mb-6 surface-panel p-4">
+                  <h4 className="mb-2 font-medium text-gray-900">Interview Assignment</h4>
+                  {currentStatus === 'INTERVIEW' ? (
+                    <div className="space-y-1 text-sm text-gray-700">
+                      <p>
+                        <span className="font-medium">Date:</span>{' '}
+                        {interviewSnapshot.interviewDate
+                          ? new Date(interviewSnapshot.interviewDate).toLocaleDateString()
+                          : '-'}
+                      </p>
+                      <p>
+                        <span className="font-medium">Start Time:</span>{' '}
+                        {interviewSnapshot.interviewStartTime || '-'}
+                      </p>
+                      <p>
+                        <span className="font-medium">Queue Number:</span>{' '}
+                        {interviewSnapshot.interviewQueueNumber || '-'}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-violet-800">
+                      Candidate is in waitlist
+                      {interviewSnapshot.waitlistRank
+                        ? ` (#${interviewSnapshot.waitlistRank})`
+                        : ''}
+                      .
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div>
                 <h4 className="mb-3 font-medium text-gray-900">Resume / CV</h4>
                 {application.student?.resumeUrl ? (
@@ -485,7 +555,10 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
               </button>
             )}
 
-            {(currentStatus === 'PENDING' || currentStatus === 'ACCEPTED') && (
+            {(currentStatus === 'PENDING' ||
+              currentStatus === 'WAITLIST' ||
+              currentStatus === 'ACCEPTED' ||
+              currentStatus === 'INTERVIEW') && (
               <button
                 type="button"
                 onClick={() => setShowInterviewDialog(true)}
@@ -493,7 +566,7 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
                 className="btn-soft border-brand-300 bg-brand-50 text-brand-700 hover:bg-brand-100 disabled:opacity-50"
               >
                 <FiMail className="mr-2 h-4 w-4" />
-                Invite to Interview
+                {currentStatus === 'INTERVIEW' ? 'Reschedule Interview' : 'Assign Interview Slot'}
               </button>
             )}
 
@@ -537,9 +610,9 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
 
       <ConfirmDialog
         open={showInterviewDialog}
-        title="Invite To Interview"
-        description="Add interview instructions, date, or meeting link (optional)."
-        confirmText="Send Invite"
+        title={currentStatus === 'INTERVIEW' ? 'Reschedule Interview' : 'Assign Interview Slot'}
+        description="Select interview date and optional note."
+        confirmText={currentStatus === 'INTERVIEW' ? 'Save Schedule' : 'Assign Slot'}
         confirmVariant="primary"
         busy={isLoading}
         onCancel={() => {
@@ -547,17 +620,41 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
           setInterviewMessage('');
         }}
         onConfirm={async () => {
+          if (!interviewDate) {
+            setActionNotice({ tone: 'error', message: 'Please select an interview date.' });
+            return;
+          }
           const message = interviewMessage.trim();
           setShowInterviewDialog(false);
-          await handleStatusChange({ status: 'INTERVIEW', message });
+          await handleStatusChange({ status: 'INTERVIEW', message, interviewDate });
         }}
       >
+        <label className="mb-3 block text-sm font-medium text-gray-700">
+          Interview Date
+          <select
+            value={interviewDate}
+            onChange={(event) => setInterviewDate(event.target.value)}
+            className="select-field mt-1"
+          >
+            <option value="">Select date</option>
+            {Array.isArray(application?.job?.interviewDates) &&
+              application.job.interviewDates.map((dateValue) => {
+                const value = String(dateValue || '').slice(0, 10);
+                return (
+                  <option key={value} value={value}>
+                    {new Date(value).toLocaleDateString()}
+                  </option>
+                );
+              })}
+          </select>
+        </label>
+
         <textarea
           rows={4}
           value={interviewMessage}
           onChange={(event) => setInterviewMessage(event.target.value)}
           className="textarea-field min-h-0"
-          placeholder="Optional: interview date, meeting link, preparation notes..."
+          placeholder="Optional: meeting link, preparation notes..."
         />
 
         {(currentStatus === 'INTERVIEW' || currentStatus === 'ACCEPTED') && (

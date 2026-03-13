@@ -22,6 +22,7 @@ enum JobType {
 
 enum ApplicationStatus {
   PENDING
+  WAITLIST
   INTERVIEW
   ACCEPTED
   REJECTED
@@ -40,6 +41,7 @@ model User {
   student        StudentProfile?
   company        CompanyProfile?
   actorAuditLogs AuditLog[]      @relation("ActorAuditLogs")
+  notifications  Notification[]
 }
 
 model StudentProfile {
@@ -50,12 +52,15 @@ model StudentProfile {
   phone           String?
   location        String?
   education       String?
+  degree          String?
+  age             Int?
   skills          String[]      @default([])
   bio             String?
   linkedin        String?
   github          String?
   website         String?
   experience      String?
+  experienceYears Int?
   profileImageUrl String?
   applications    Application[]
 }
@@ -79,6 +84,14 @@ model Job {
   description  String
   location     String?
   type         JobType        @default(FULL_TIME)
+  requiredSkills String[]     @default([])
+  requiredDegree String?
+  minAge         Int?
+  maxAge         Int?
+  minExperienceYears Int?
+  interviewDates DateTime[]   @default([])
+  interviewStartTime String?
+  interviewCandidatesPerDay Int?
   companyId    Int
   company      CompanyProfile @relation(fields: [companyId], references: [id])
   createdAt    DateTime       @default(now())
@@ -92,12 +105,22 @@ model Application {
   jobId     Int
   studentId Int
   status    ApplicationStatus @default(PENDING)
+  matchScore Int              @default(0)
+  matchSummary Json?
+  interviewDate DateTime?
+  interviewStartTime String?
+  interviewQueueNumber Int?
+  waitlistRank Int?
+  interviewNote String?
+  manualInterviewOverride Boolean @default(false)
   createdAt DateTime          @default(now())
   job       Job               @relation(fields: [jobId], references: [id])
   student   StudentProfile    @relation(fields: [studentId], references: [id])
 
   @@unique([jobId, studentId])
   @@index([status, createdAt])
+  @@index([jobId, status, matchScore])
+  @@index([jobId, interviewDate, interviewQueueNumber])
 }
 
 model AuditLog {
@@ -110,4 +133,20 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   actor User? @relation("ActorAuditLogs", fields: [actorId], references: [id], onDelete: SetNull)
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  type      String
+  title     String
+  message   String
+  metadata  Json?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
 }

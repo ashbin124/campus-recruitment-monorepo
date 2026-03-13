@@ -21,6 +21,14 @@ export default function CompanyDashboard() {
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
+  const [requiredSkills, setRequiredSkills] = useState('');
+  const [requiredDegree, setRequiredDegree] = useState('');
+  const [minAge, setMinAge] = useState('');
+  const [maxAge, setMaxAge] = useState('');
+  const [minExperienceYears, setMinExperienceYears] = useState('');
+  const [interviewDates, setInterviewDates] = useState('');
+  const [interviewStartTime, setInterviewStartTime] = useState('');
+  const [interviewCandidatesPerDay, setInterviewCandidatesPerDay] = useState('');
   const [jobs, setJobs] = useState([]);
   const [apps, setApps] = useState([]);
   const [selectedApp, setSelectedApp] = useState(null);
@@ -49,6 +57,7 @@ export default function CompanyDashboard() {
 
   const appCounts = useMemo(() => {
     const pending = appsWithMeta.filter((item) => item.status === 'PENDING').length;
+    const waitlist = appsWithMeta.filter((item) => item.status === 'WAITLIST').length;
     const interview = appsWithMeta.filter((item) => item.status === 'INTERVIEW').length;
     const accepted = appsWithMeta.filter(
       (item) => item.status === 'ACCEPTED' || item.status === 'APPROVED'
@@ -58,6 +67,7 @@ export default function CompanyDashboard() {
       total: appsWithMeta.length,
       new: fresh,
       pending,
+      waitlist,
       interview,
       accepted,
     };
@@ -121,6 +131,14 @@ export default function CompanyDashboard() {
     setTitle('');
     setLocation('');
     setDescription('');
+    setRequiredSkills('');
+    setRequiredDegree('');
+    setMinAge('');
+    setMaxAge('');
+    setMinExperienceYears('');
+    setInterviewDates('');
+    setInterviewStartTime('');
+    setInterviewCandidatesPerDay('');
     setEditingJobId(null);
   }
 
@@ -128,11 +146,39 @@ export default function CompanyDashboard() {
     e.preventDefault();
     try {
       setSavingJob(true);
+      const requiredSkillsList = String(requiredSkills || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+      const interviewDateList = String(interviewDates || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+
       const payload = {
         title: String(title || '').trim(),
         description: String(description || '').trim(),
         location: String(location || '').trim(),
+        requiredSkills: requiredSkillsList,
+        requiredDegree: String(requiredDegree || '').trim(),
+        interviewDates: interviewDateList,
       };
+
+      if (minAge !== '') payload.minAge = Number(minAge);
+      else if (isEditing) payload.minAge = null;
+
+      if (maxAge !== '') payload.maxAge = Number(maxAge);
+      else if (isEditing) payload.maxAge = null;
+
+      if (minExperienceYears !== '') payload.minExperienceYears = Number(minExperienceYears);
+      else if (isEditing) payload.minExperienceYears = null;
+
+      if (interviewStartTime.trim()) payload.interviewStartTime = interviewStartTime.trim();
+      else if (isEditing) payload.interviewStartTime = null;
+
+      if (interviewCandidatesPerDay !== '')
+        payload.interviewCandidatesPerDay = Number(interviewCandidatesPerDay);
+      else if (isEditing) payload.interviewCandidatesPerDay = null;
 
       if (isEditing) {
         await api.put(`/jobs/${editingJobId}`, payload);
@@ -226,6 +272,23 @@ export default function CompanyDashboard() {
     setTitle(job.title || '');
     setLocation(job.location || '');
     setDescription(job.description || '');
+    setRequiredSkills(Array.isArray(job.requiredSkills) ? job.requiredSkills.join(', ') : '');
+    setRequiredDegree(job.requiredDegree || '');
+    setMinAge(job.minAge != null ? String(job.minAge) : '');
+    setMaxAge(job.maxAge != null ? String(job.maxAge) : '');
+    setMinExperienceYears(job.minExperienceYears != null ? String(job.minExperienceYears) : '');
+    setInterviewDates(
+      Array.isArray(job.interviewDates)
+        ? job.interviewDates
+            .map((date) => String(date || '').slice(0, 10))
+            .filter(Boolean)
+            .join(', ')
+        : ''
+    );
+    setInterviewStartTime(job.interviewStartTime || '');
+    setInterviewCandidatesPerDay(
+      job.interviewCandidatesPerDay != null ? String(job.interviewCandidatesPerDay) : ''
+    );
     setWorkspaceView('jobs');
   }
 
@@ -288,9 +351,25 @@ export default function CompanyDashboard() {
               title={title}
               location={location}
               description={description}
+              requiredSkills={requiredSkills}
+              requiredDegree={requiredDegree}
+              minAge={minAge}
+              maxAge={maxAge}
+              minExperienceYears={minExperienceYears}
+              interviewDates={interviewDates}
+              interviewStartTime={interviewStartTime}
+              interviewCandidatesPerDay={interviewCandidatesPerDay}
               onTitleChange={setTitle}
               onLocationChange={setLocation}
               onDescriptionChange={setDescription}
+              onRequiredSkillsChange={setRequiredSkills}
+              onRequiredDegreeChange={setRequiredDegree}
+              onMinAgeChange={setMinAge}
+              onMaxAgeChange={setMaxAge}
+              onMinExperienceYearsChange={setMinExperienceYears}
+              onInterviewDatesChange={setInterviewDates}
+              onInterviewStartTimeChange={setInterviewStartTime}
+              onInterviewCandidatesPerDayChange={setInterviewCandidatesPerDay}
               onSubmit={saveJob}
               onCancel={resetJobForm}
             />

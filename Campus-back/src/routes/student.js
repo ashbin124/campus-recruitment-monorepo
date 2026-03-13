@@ -14,12 +14,15 @@ const updateStudentProfileSchema = z.object({
   phone: z.string().trim().max(32).optional(),
   location: z.string().trim().max(120).optional(),
   education: z.string().trim().max(2000).optional(),
+  degree: z.string().trim().max(200).optional(),
+  age: z.coerce.number().int().positive().max(120).optional(),
   skills: z.string().trim().max(2000).optional(),
   bio: z.string().trim().max(4000).optional(),
   linkedin: z.string().trim().max(2048).optional(),
   github: z.string().trim().max(2048).optional(),
   website: z.string().trim().max(2048).optional(),
   experience: z.string().trim().max(4000).optional(),
+  experienceYears: z.coerce.number().int().min(0).max(60).optional(),
 });
 
 // GET current student's profile
@@ -41,18 +44,24 @@ router.get('/profile', authenticate, async (req, res) => {
       phone: s?.phone || '',
       location: s?.location || '',
       education: s?.education || '',
+      degree: s?.degree || '',
+      age: s?.age || null,
       skills: s?.skills || [],
       bio: s?.bio || '',
       linkedin: s?.linkedin || '',
       github: s?.github || '',
       website: s?.website || '',
       experience: s?.experience || '',
+      experienceYears: s?.experienceYears || null,
       profileImageUrl: s?.profileImageUrl || '',
       resumeUrl: s?.resumeUrl || '',
       stats: {
         applications: s?.applications?.length || 0,
-        interviews: 0,
-        offers: 0,
+        interviews: s?.applications?.filter((item) => item.status === 'INTERVIEW').length || 0,
+        offers:
+          s?.applications?.filter(
+            (item) => item.status === 'ACCEPTED' || item.status === 'APPROVED'
+          ).length || 0,
       },
     };
     return res.json(payload);
@@ -83,12 +92,15 @@ router.put(
         phone,
         location,
         education,
+        degree,
+        age,
         skills,
         bio,
         linkedin,
         github,
         website,
         experience,
+        experienceYears,
       } = req.body;
 
       // Prepare uploads
@@ -126,11 +138,14 @@ router.put(
         phone: phone ?? undefined,
         location: location ?? undefined,
         education: education ?? undefined,
+        degree: degree ?? undefined,
+        age: age ?? undefined,
         bio: bio ?? undefined,
         linkedin: linkedin ?? undefined,
         github: github ?? undefined,
         website: website ?? undefined,
         experience: experience ?? undefined,
+        experienceYears: experienceYears ?? undefined,
         ...(hasSkillsField ? { skills: skillsArray } : {}),
         ...(profileImageUrl ? { profileImageUrl } : {}),
         ...(resumeUrl ? { resumeUrl } : {}),

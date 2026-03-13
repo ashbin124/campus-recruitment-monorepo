@@ -3,6 +3,7 @@ function getStatusClasses(status) {
 
   if (value === 'ACTIVE') return 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200';
   if (value === 'PENDING') return 'bg-amber-100 text-amber-900 ring-1 ring-amber-200';
+  if (value === 'WAITLIST') return 'bg-violet-100 text-violet-900 ring-1 ring-violet-200';
   if (value === 'INTERVIEW') return 'bg-blue-100 text-blue-900 ring-1 ring-blue-200';
   if (value === 'ACCEPTED' || value === 'APPROVED')
     return 'bg-teal-100 text-teal-900 ring-1 ring-teal-200';

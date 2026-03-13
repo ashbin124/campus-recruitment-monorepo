@@ -5,9 +5,22 @@ import prisma from '../connection/prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { sendOfferLetter, sendInterviewInvite } from '../utils/mail.js';
 import { validate } from '../middleware/validate.js';
+import { evaluateJobEligibility } from '../utils/eligibility.js';
+import { extractResumeText } from '../utils/resumeScanner.js';
+import {
+  manualAssignApplicationToInterview,
+  recomputeInterviewAssignmentsForJob,
+} from '../services/interviewScheduler.js';
 
 const router = express.Router();
-const APPLICATION_STATUSES = ['PENDING', 'INTERVIEW', 'ACCEPTED', 'REJECTED', 'APPROVED'];
+const APPLICATION_STATUSES = [
+  'PENDING',
+  'WAITLIST',
+  'INTERVIEW',
+  'ACCEPTED',
+  'REJECTED',
+  'APPROVED',
+];
 const applicationStatusSchema = z.enum(APPLICATION_STATUSES);
 const EMAIL_LOG_ENTITY = 'APPLICATION_EMAIL';
 
@@ -20,10 +33,22 @@ const applyBodySchema = z.object({
 const updateApplicationSchema = z.object({
   status: z.string().trim().toUpperCase().pipe(applicationStatusSchema).optional(),
   message: z.string().trim().max(1000).optional(),
+  interviewDate: z.string().trim().optional(),
 });
 const retryEmailSchema = z.object({
   message: z.string().trim().max(1000).optional(),
 });
+const manualAssignSchema = z.object({
+  interviewDate: z.string().trim().optional(),
+  message: z.string().trim().max(1000).optional(),
+});
+
+function toDateKey(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
 
 function shouldSendStatusEmail(status) {
   return status === 'ACCEPTED' || status === 'INTERVIEW';
@@ -106,7 +131,24 @@ async function sendStatusEmail({ application, company, status, message }) {
     if (status === 'ACCEPTED') {
       await sendOfferLetter(notification.to, studentName, companyName, jobTitle);
     } else {
-      await sendInterviewInvite(notification.to, studentName, companyName, jobTitle, message || '');
+      const scheduleDetails = [
+        application?.interviewDate ? `Date: ${toDateKey(application.interviewDate)}` : null,
+        application?.interviewStartTime ? `Start time: ${application.interviewStartTime}` : null,
+        Number.isInteger(application?.interviewQueueNumber)
+          ? `Queue number: ${application.interviewQueueNumber}`
+          : null,
+        message || null,
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      await sendInterviewInvite(
+        notification.to,
+        studentName,
+        companyName,
+        jobTitle,
+        scheduleDetails
+      );
     }
 
     notification.sent = true;
@@ -130,7 +172,15 @@ async function getCompanyApplicationContext(applicationId, userId) {
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
     include: {
-      job: true,
+      job: {
+        include: {
+          company: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      },
       student: {
         include: {
           user: true,
@@ -153,31 +203,95 @@ router.post(
     try {
       const jobId = req.params.jobId;
 
-      const userId = req.user.id;
-      const student = await prisma.studentProfile.findUnique({ where: { userId } });
+      const student = await prisma.studentProfile.findUnique({
+        where: { userId: req.user.id },
+        include: { user: true },
+      });
       if (!student) return res.status(400).json({ message: 'Student profile missing' });
-      const job = await prisma.job.findUnique({ where: { id: jobId } });
+
+      const job = await prisma.job.findUnique({
+        where: { id: jobId },
+        include: {
+          company: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
       if (!job) return res.status(404).json({ message: 'Job not found' });
 
       const { phone, resumeUrl } = req.body || {};
+      let effectiveResumeUrl = student.resumeUrl;
+
       if (phone || resumeUrl) {
-        await prisma.studentProfile.update({
+        const updatedStudent = await prisma.studentProfile.update({
           where: { id: student.id },
-          data: { phone: phone ?? undefined, resumeUrl: resumeUrl ?? undefined },
+          data: {
+            phone: phone ?? undefined,
+            resumeUrl: resumeUrl ?? undefined,
+          },
+        });
+        effectiveResumeUrl = updatedStudent.resumeUrl;
+      }
+
+      const resumeText = await extractResumeText(effectiveResumeUrl);
+      const evaluation = evaluateJobEligibility({
+        job,
+        student: {
+          ...student,
+          resumeUrl: effectiveResumeUrl,
+        },
+        resumeText,
+      });
+
+      if (!evaluation.eligible) {
+        return res.status(400).json({
+          message: 'You do not meet this job requirement.',
+          reasons: evaluation.reasons,
+          matchScore: evaluation.score,
         });
       }
 
       try {
-        const appRec = await prisma.application.create({ data: { jobId, studentId: student.id } });
-        return res.status(201).json(appRec);
+        const appRec = await prisma.application.create({
+          data: {
+            jobId,
+            studentId: student.id,
+            status: 'PENDING',
+            matchScore: evaluation.score,
+            matchSummary: {
+              eligible: true,
+              reasons: [],
+              matchedSkills: evaluation.matchedSkills,
+              details: evaluation.details,
+            },
+          },
+        });
+
+        await recomputeInterviewAssignmentsForJob(jobId, {
+          reason: 'NEW_APPLICATION',
+          actorId: req.user.id,
+        });
+
+        const latest = await prisma.application.findUnique({
+          where: { id: appRec.id },
+        });
+
+        return res.status(201).json(
+          latest || {
+            ...appRec,
+            status: 'PENDING',
+          }
+        );
       } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
           return res.status(409).json({ message: 'Already applied' });
         }
         throw error;
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
       return res.status(500).json({ message: 'Server error' });
     }
   }
@@ -186,17 +300,17 @@ router.post(
 // Student: list my applications
 router.get('/me', authenticate, authorize('STUDENT'), async (req, res) => {
   try {
-    const userId = req.user.id;
-    const student = await prisma.studentProfile.findUnique({ where: { userId } });
+    const student = await prisma.studentProfile.findUnique({ where: { userId: req.user.id } });
     if (!student) return res.status(400).json({ message: 'Student profile missing' });
+
     const apps = await prisma.application.findMany({
       where: { studentId: student.id },
       include: { job: { include: { company: true } } },
       orderBy: { createdAt: 'desc' },
     });
     return res.json(apps);
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error(error);
     return res.status(500).json({ message: 'Server error' });
   }
 });
@@ -204,8 +318,7 @@ router.get('/me', authenticate, authorize('STUDENT'), async (req, res) => {
 // Company: list applications for my jobs
 router.get('/company', authenticate, authorize('COMPANY'), async (req, res) => {
   try {
-    const userId = req.user.id;
-    const company = await prisma.companyProfile.findUnique({ where: { userId } });
+    const company = await prisma.companyProfile.findUnique({ where: { userId: req.user.id } });
     if (!company) return res.status(400).json({ message: 'Company profile missing' });
 
     const configuredBase = String(process.env.API_URL || '')
@@ -231,7 +344,7 @@ router.get('/company', authenticate, authorize('COMPANY'), async (req, res) => {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ status: 'asc' }, { matchScore: 'desc' }, { createdAt: 'asc' }],
     });
 
     const toAbsoluteResumeUrl = (resumeUrl) => {
@@ -241,22 +354,70 @@ router.get('/company', authenticate, authorize('COMPANY'), async (req, res) => {
       return `${base}${normalizedPath}`;
     };
 
-    const appsWithResumeUrl = apps.map((app) => ({
-      ...app,
-      student: {
-        ...app.student,
-        resumeUrl: toAbsoluteResumeUrl(app.student.resumeUrl),
-      },
-    }));
-
-    return res.json(appsWithResumeUrl);
-  } catch (e) {
-    console.error(e);
+    return res.json(
+      apps.map((app) => ({
+        ...app,
+        student: {
+          ...app.student,
+          resumeUrl: toAbsoluteResumeUrl(app.student.resumeUrl),
+        },
+      }))
+    );
+  } catch (error) {
+    console.error(error);
     return res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Company: update application status (e.g., ACCEPTED/REJECTED)
+// Company: manual assign or reschedule interview with override
+router.post(
+  '/:id/manual-assign',
+  authenticate,
+  authorize('COMPANY'),
+  validate(applicationIdParamSchema, 'params'),
+  validate(manualAssignSchema),
+  async (req, res) => {
+    try {
+      const id = req.params.id;
+      const interviewDate = req.body?.interviewDate;
+      const message = req.body?.message;
+
+      const result = await manualAssignApplicationToInterview({
+        applicationId: id,
+        actorId: req.user.id,
+        interviewDate,
+        note: message,
+      });
+
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ message: result.message || 'Failed' });
+      }
+
+      await writeAuditLog({
+        actorId: req.user.id,
+        action: 'MANUAL_INTERVIEW_ASSIGNMENT',
+        entityType: 'APPLICATION',
+        entityId: id,
+        metadata: {
+          interviewDate: toDateKey(result?.application?.interviewDate),
+          interviewStartTime: result?.application?.interviewStartTime || null,
+          interviewQueueNumber: result?.application?.interviewQueueNumber || null,
+          note: String(message || '').trim() || null,
+        },
+      });
+
+      return res.json({
+        message: 'Interview assigned manually.',
+        application: result.application,
+      });
+    } catch (error) {
+      console.error('Error in manual interview assignment:', error);
+      return res.status(500).json({ message: 'Failed to assign interview' });
+    }
+  }
+);
+
+// Company: update application status
 router.patch(
   '/:id',
   authenticate,
@@ -267,9 +428,11 @@ router.patch(
     try {
       const id = req.params.id;
       const actorId = req.user.id;
-      const rawStatus =
+      const nextStatus =
         typeof req.body?.status === 'string' ? req.body.status.trim().toUpperCase() : '';
       const note = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+      const interviewDate =
+        typeof req.body?.interviewDate === 'string' ? req.body.interviewDate : '';
 
       const { company, application: currentApplication } = await getCompanyApplicationContext(
         id,
@@ -281,10 +444,67 @@ router.patch(
         return res.status(403).json({ message: 'Not authorized to update this application' });
       }
 
-      const nextStatus = rawStatus || currentApplication.status;
+      if (nextStatus === 'INTERVIEW') {
+        const result = await manualAssignApplicationToInterview({
+          applicationId: id,
+          actorId,
+          interviewDate,
+          note,
+        });
+        if (!result.ok) {
+          return res.status(result.status || 400).json({ message: result.message || 'Failed' });
+        }
+
+        await writeAuditLog({
+          actorId,
+          action: 'UPDATE_APPLICATION_STATUS',
+          entityType: 'APPLICATION',
+          entityId: id,
+          metadata: {
+            fromStatus: currentApplication.status,
+            toStatus: 'INTERVIEW',
+            companyId: company.id,
+            note: note || null,
+            interviewDate: toDateKey(result.application.interviewDate),
+            interviewStartTime: result.application.interviewStartTime || null,
+            interviewQueueNumber: result.application.interviewQueueNumber || null,
+          },
+        });
+
+        return res.json({
+          message: 'Interview assigned successfully.',
+          application: result.application,
+          emailNotification: {
+            attempted: true,
+            sent: Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD),
+            retryable: !Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD),
+            to: result.application?.student?.user?.email || null,
+          },
+          emailDeliveryLogs: await getEmailDeliveryLogs(id),
+        });
+      }
+
+      const statusToPersist = nextStatus || currentApplication.status;
+      const updateData = {
+        status: statusToPersist,
+        manualInterviewOverride: statusToPersist === 'INTERVIEW',
+      };
+
+      if (statusToPersist !== 'INTERVIEW') {
+        updateData.interviewDate = null;
+        updateData.interviewStartTime = null;
+        updateData.interviewQueueNumber = null;
+        updateData.interviewNote = note || currentApplication.interviewNote || null;
+        if (statusToPersist !== 'WAITLIST') {
+          updateData.waitlistRank = null;
+        }
+      } else if (note) {
+        updateData.interviewNote = note;
+      }
+
       const updatedApplication = await prisma.application.update({
         where: { id },
-        data: { status: nextStatus },
+        data: updateData,
         include: {
           job: true,
           student: {
@@ -302,7 +522,7 @@ router.patch(
         entityId: id,
         metadata: {
           fromStatus: currentApplication.status,
-          toStatus: nextStatus,
+          toStatus: statusToPersist,
           companyId: company.id,
           note: note || null,
         },
@@ -311,7 +531,7 @@ router.patch(
       const emailNotification = await sendStatusEmail({
         application: updatedApplication,
         company,
-        status: nextStatus,
+        status: statusToPersist,
         message: note,
       });
 
@@ -323,7 +543,7 @@ router.patch(
           entityId: id,
           metadata: {
             attemptType: 'status_update',
-            status: nextStatus,
+            status: statusToPersist,
             sent: emailNotification.sent,
             retryable: emailNotification.retryable,
             to: emailNotification.to,
@@ -333,16 +553,25 @@ router.patch(
         });
       }
 
-      const emailDeliveryLogs = await getEmailDeliveryLogs(id);
+      if (
+        statusToPersist === 'REJECTED' ||
+        statusToPersist === 'ACCEPTED' ||
+        statusToPersist === 'APPROVED'
+      ) {
+        await recomputeInterviewAssignmentsForJob(currentApplication.jobId, {
+          reason: 'STATUS_CHANGED',
+          actorId,
+        });
+      }
 
       return res.json({
-        message: `Application marked as ${nextStatus}.`,
+        message: `Application marked as ${statusToPersist}.`,
         application: updatedApplication,
         emailNotification,
-        emailDeliveryLogs,
+        emailDeliveryLogs: await getEmailDeliveryLogs(id),
       });
-    } catch (e) {
-      console.error('Error updating application status:', e);
+    } catch (error) {
+      console.error('Error updating application status:', error);
       return res.status(500).json({ message: 'Failed to update application status' });
     }
   }
@@ -398,18 +627,16 @@ router.post(
         },
       });
 
-      const emailDeliveryLogs = await getEmailDeliveryLogs(id);
-
       return res.json({
         message: emailNotification.sent
           ? 'Email notification sent successfully.'
           : 'Email retry failed. Please review delivery logs and retry.',
         application,
         emailNotification,
-        emailDeliveryLogs,
+        emailDeliveryLogs: await getEmailDeliveryLogs(id),
       });
-    } catch (e) {
-      console.error('Error retrying application email:', e);
+    } catch (error) {
+      console.error('Error retrying application email:', error);
       return res.status(500).json({ message: 'Failed to retry email notification' });
     }
   }
