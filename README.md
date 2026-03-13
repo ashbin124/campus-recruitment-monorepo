@@ -52,12 +52,17 @@ npm run format:check
 npm run build
 ```
 
-## CI
+## CI and Automation
 
-Each repo has its own CI workflow:
+Automation is configured at the monorepo root:
 
-- `Campus-back/.github/workflows/ci.yml`
-- `Campusrec.io/.github/workflows/ci.yml`
+- CI workflow: `.github/workflows/ci.yml`
+  - Runs backend checks (`lint`, `format:check`, `test`)
+  - Runs frontend checks (`lint`, `format:check`, `build`)
+  - Triggers on push, pull request, and manual dispatch
+- Dependency automation: `.github/dependabot.yml`
+  - Weekly npm updates for `Campus-back` and `Campusrec.io`
+  - Weekly GitHub Actions updates
 
 ## Deployment and Operations
 
