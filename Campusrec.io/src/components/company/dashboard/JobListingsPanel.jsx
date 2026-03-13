@@ -62,6 +62,22 @@ function getJobTypeTheme(value) {
   };
 }
 
+function hasInterviewSchedule(job) {
+  const interviewDates = Array.isArray(job?.interviewDates) ? job.interviewDates : [];
+  const interviewStartTime = String(job?.interviewStartTime || '').trim();
+  const interviewCandidatesPerDay = Number.parseInt(
+    String(job?.interviewCandidatesPerDay || ''),
+    10
+  );
+
+  return Boolean(
+    interviewDates.length > 0 &&
+    /^([01]\d|2[0-3]):([0-5]\d)$/.test(interviewStartTime) &&
+    Number.isInteger(interviewCandidatesPerDay) &&
+    interviewCandidatesPerDay > 0
+  );
+}
+
 export default function JobListingsPanel({ jobs, deletingJobId, onEdit, onRequestDelete }) {
   return (
     <div className="section-shell">
@@ -79,6 +95,7 @@ export default function JobListingsPanel({ jobs, deletingJobId, onEdit, onReques
           const isRemoteRole = String(job.location || '')
             .toLowerCase()
             .includes('remote');
+          const scheduleReady = hasInterviewSchedule(job);
 
           return (
             <article
@@ -126,6 +143,15 @@ export default function JobListingsPanel({ jobs, deletingJobId, onEdit, onReques
                   }`}
                 >
                   {isRemoteRole ? 'Remote friendly' : 'On-site / Hybrid'}
+                </span>
+                <span
+                  className={`ml-2 inline-flex rounded-md border px-2.5 py-1 text-xs font-medium ${
+                    scheduleReady
+                      ? 'border-emerald-200 bg-emerald-100 text-emerald-800'
+                      : 'border-rose-200 bg-rose-100 text-rose-800'
+                  }`}
+                >
+                  {scheduleReady ? 'Auto-interview ready' : 'Schedule missing'}
                 </span>
               </div>
 

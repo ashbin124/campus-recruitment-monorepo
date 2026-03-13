@@ -71,6 +71,22 @@ function normalizeInterviewSchedulePayload(payload) {
   };
 }
 
+function isInterviewScheduleConfigured(source) {
+  const interviewDates = Array.isArray(source?.interviewDates) ? source.interviewDates : [];
+  const interviewStartTime = String(source?.interviewStartTime || '').trim();
+  const interviewCandidatesPerDay = Number.parseInt(
+    String(source?.interviewCandidatesPerDay || ''),
+    10
+  );
+
+  return Boolean(
+    interviewDates.length > 0 &&
+    time24Schema.safeParse(interviewStartTime).success &&
+    Number.isInteger(interviewCandidatesPerDay) &&
+    interviewCandidatesPerDay > 0
+  );
+}
+
 function parseJobPayload(body, { allowPartial = false } = {}) {
   const payload = {};
   const assign = (key, value) => {
@@ -262,13 +278,20 @@ router.get(
       const resumeText = await extractResumeText(student.resumeUrl);
       const evaluatedJobs = jobs.map((job) => {
         const evaluation = evaluateJobEligibility({ job, student, resumeText });
+        const scheduleConfigured = isInterviewScheduleConfigured(job);
+        const reasons = [...evaluation.reasons];
+        if (!scheduleConfigured) {
+          reasons.push('Interview schedule is not configured by company yet');
+        }
+
         return {
           ...job,
           matchScore: evaluation.score,
           matchSummary: {
-            eligible: evaluation.eligible,
-            reasons: evaluation.reasons,
+            eligible: evaluation.eligible && scheduleConfigured,
+            reasons,
             matchedSkills: evaluation.matchedSkills,
+            scheduleConfigured,
           },
         };
       });
@@ -355,6 +378,12 @@ router.post(
       ) {
         return res.status(400).json({ message: 'minAge cannot be greater than maxAge' });
       }
+      if (!isInterviewScheduleConfigured(parsed)) {
+        return res.status(400).json({
+          message:
+            'Interview automation requires interview dates, start time (HH:mm), and candidates/day.',
+        });
+      }
 
       const job = await prisma.job.create({
         data: {
@@ -412,6 +441,25 @@ router.put(
         parsed.minAge > parsed.maxAge
       ) {
         return res.status(400).json({ message: 'minAge cannot be greater than maxAge' });
+      }
+
+      const effectiveSchedule = {
+        interviewDates:
+          parsed.interviewDates !== undefined ? parsed.interviewDates : existing.interviewDates,
+        interviewStartTime:
+          parsed.interviewStartTime !== undefined
+            ? parsed.interviewStartTime
+            : existing.interviewStartTime,
+        interviewCandidatesPerDay:
+          parsed.interviewCandidatesPerDay !== undefined
+            ? parsed.interviewCandidatesPerDay
+            : existing.interviewCandidatesPerDay,
+      };
+      if (!isInterviewScheduleConfigured(effectiveSchedule)) {
+        return res.status(400).json({
+          message:
+            'Interview automation requires interview dates, start time (HH:mm), and candidates/day.',
+        });
       }
 
       const updateData = {

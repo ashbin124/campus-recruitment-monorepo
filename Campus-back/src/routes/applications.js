@@ -50,6 +50,22 @@ function toDateKey(value) {
   return date.toISOString().slice(0, 10);
 }
 
+function hasInterviewSchedule(job) {
+  const interviewDates = Array.isArray(job?.interviewDates) ? job.interviewDates : [];
+  const interviewStartTime = String(job?.interviewStartTime || '').trim();
+  const interviewCandidatesPerDay = Number.parseInt(
+    String(job?.interviewCandidatesPerDay || ''),
+    10
+  );
+
+  return Boolean(
+    interviewDates.length > 0 &&
+    /^([01]\d|2[0-3]):([0-5]\d)$/.test(interviewStartTime) &&
+    Number.isInteger(interviewCandidatesPerDay) &&
+    interviewCandidatesPerDay > 0
+  );
+}
+
 function shouldSendStatusEmail(status) {
   return status === 'ACCEPTED' || status === 'INTERVIEW';
 }
@@ -220,6 +236,12 @@ router.post(
         },
       });
       if (!job) return res.status(404).json({ message: 'Job not found' });
+      if (!hasInterviewSchedule(job)) {
+        return res.status(400).json({
+          message:
+            'This job is not accepting applications yet because interview schedule is not configured.',
+        });
+      }
 
       const { phone, resumeUrl } = req.body || {};
       let effectiveResumeUrl = student.resumeUrl;

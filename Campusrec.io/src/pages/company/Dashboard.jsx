@@ -144,17 +144,32 @@ export default function CompanyDashboard() {
 
   async function saveJob(e) {
     e.preventDefault();
+    const requiredSkillsList = String(requiredSkills || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const interviewDateList = String(interviewDates || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const normalizedInterviewStartTime = String(interviewStartTime || '').trim();
+    const parsedCandidatesPerDay = Number.parseInt(String(interviewCandidatesPerDay || ''), 10);
+
+    if (
+      interviewDateList.length === 0 ||
+      !normalizedInterviewStartTime ||
+      !Number.isInteger(parsedCandidatesPerDay) ||
+      parsedCandidatesPerDay <= 0
+    ) {
+      setStatusNotice({
+        type: 'error',
+        text: 'Interview automation needs dates, start time, and candidates per day.',
+      });
+      return;
+    }
+
     try {
       setSavingJob(true);
-      const requiredSkillsList = String(requiredSkills || '')
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean);
-      const interviewDateList = String(interviewDates || '')
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean);
-
       const payload = {
         title: String(title || '').trim(),
         description: String(description || '').trim(),
@@ -162,6 +177,8 @@ export default function CompanyDashboard() {
         requiredSkills: requiredSkillsList,
         requiredDegree: String(requiredDegree || '').trim(),
         interviewDates: interviewDateList,
+        interviewStartTime: normalizedInterviewStartTime,
+        interviewCandidatesPerDay: parsedCandidatesPerDay,
       };
 
       if (minAge !== '') payload.minAge = Number(minAge);
@@ -172,11 +189,6 @@ export default function CompanyDashboard() {
 
       if (minExperienceYears !== '') payload.minExperienceYears = Number(minExperienceYears);
       else if (isEditing) payload.minExperienceYears = null;
-
-      if (interviewStartTime.trim()) payload.interviewStartTime = interviewStartTime.trim();
-
-      if (interviewCandidatesPerDay !== '')
-        payload.interviewCandidatesPerDay = Number(interviewCandidatesPerDay);
 
       if (isEditing) {
         await api.put(`/jobs/${editingJobId}`, payload);

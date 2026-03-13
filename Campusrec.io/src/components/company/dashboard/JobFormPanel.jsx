@@ -143,7 +143,7 @@ export default function JobFormPanel({
 
         <label className="flex flex-col gap-1 sm:col-span-2">
           <span className="text-sm font-medium text-gray-700">
-            Interview Dates (comma separated YYYY-MM-DD)
+            Interview Dates (required, comma separated YYYY-MM-DD)
           </span>
           <textarea
             value={interviewDates}
@@ -151,21 +151,23 @@ export default function JobFormPanel({
             className="textarea-field"
             rows="2"
             placeholder="2026-03-20, 2026-03-27, 2026-04-03"
+            required
           />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-gray-700">Interview Start Time</span>
+          <span className="text-sm font-medium text-gray-700">Interview Start Time (required)</span>
           <input
             type="time"
             value={interviewStartTime}
             onChange={(event) => onInterviewStartTimeChange(event.target.value)}
             className="input-field"
+            required
           />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-gray-700">Candidates Per Day</span>
+          <span className="text-sm font-medium text-gray-700">Candidates Per Day (required)</span>
           <input
             type="number"
             min="1"
@@ -173,6 +175,7 @@ export default function JobFormPanel({
             onChange={(event) => onInterviewCandidatesPerDayChange(event.target.value)}
             className="input-field"
             placeholder="10"
+            required
           />
         </label>
 
