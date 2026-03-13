@@ -86,6 +86,35 @@ function getJobTypeTheme(value) {
   };
 }
 
+function buildRequirementRows(job) {
+  const rows = [];
+  const requiredSkills = Array.isArray(job?.requiredSkills)
+    ? job.requiredSkills.map((item) => String(item || '').trim()).filter(Boolean)
+    : [];
+
+  if (requiredSkills.length) {
+    rows.push(`Skills: ${requiredSkills.join(', ')}`);
+  }
+  if (job?.requiredDegree) {
+    rows.push(`Degree: ${job.requiredDegree}`);
+  }
+  if (job?.minExperienceYears != null) {
+    rows.push(`Min experience: ${job.minExperienceYears} year(s)`);
+  }
+
+  const hasMinAge = job?.minAge != null;
+  const hasMaxAge = job?.maxAge != null;
+  if (hasMinAge && hasMaxAge) {
+    rows.push(`Age: ${job.minAge}-${job.maxAge}`);
+  } else if (hasMinAge) {
+    rows.push(`Min age: ${job.minAge}`);
+  } else if (hasMaxAge) {
+    rows.push(`Max age: ${job.maxAge}`);
+  }
+
+  return rows;
+}
+
 const Jobs = () => {
   const { user } = useAuth();
   const toast = useToast();
@@ -111,6 +140,18 @@ const Jobs = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const hasActiveFilters = Boolean(title || location || companyIdFilter);
+  const selectedJobRequirementRows = useMemo(
+    () => buildRequirementRows(selectedJob),
+    [selectedJob]
+  );
+  const selectedMatchedSkills = useMemo(() => {
+    if (!selectedJob) return [];
+    return Array.isArray(selectedJob?.matchSummary?.matchedSkills)
+      ? selectedJob.matchSummary.matchedSkills
+          .map((item) => String(item || '').trim())
+          .filter(Boolean)
+      : [];
+  }, [selectedJob]);
 
   const stats = useMemo(() => {
     const remote = jobs.filter((job) =>
@@ -343,6 +384,12 @@ const Jobs = () => {
                 const isRemoteRole = String(job.location || '')
                   .toLowerCase()
                   .includes('remote');
+                const requirementRows = buildRequirementRows(job);
+                const matchedSkills = Array.isArray(job?.matchSummary?.matchedSkills)
+                  ? job.matchSummary.matchedSkills
+                      .map((item) => String(item || '').trim())
+                      .filter(Boolean)
+                  : [];
 
                 return (
                   <article
@@ -432,6 +479,32 @@ const Jobs = () => {
                       </div>
 
                       <div
+                        className={`mt-4 rounded-xl border px-3 py-3 text-sm ${typeTheme.metaPanel}`}
+                      >
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-current/70">
+                          Requirement Check
+                        </p>
+                        {requirementRows.length > 0 ? (
+                          <ul className="mt-1 space-y-1 text-sm leading-5 text-slate-700">
+                            {requirementRows.map((row) => (
+                              <li key={`${job.id}-${row}`} className="line-clamp-2">
+                                {row}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-1 text-sm text-slate-600">
+                            No strict requirements were set by the company.
+                          </p>
+                        )}
+                        {matchedSkills.length > 0 && (
+                          <p className="mt-2 text-xs font-medium text-emerald-700">
+                            Matched skills: {matchedSkills.join(', ')}
+                          </p>
+                        )}
+                      </div>
+
+                      <div
                         className={`student-job-actions mt-5 flex flex-col gap-2 rounded-xl border p-2 sm:flex-row sm:items-center sm:justify-between ${typeTheme.actionPanel}`}
                       >
                         <button
@@ -508,6 +581,25 @@ const Jobs = () => {
                     />
                   </svg>
                 </button>
+              </div>
+
+              <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4">
+                <p className="text-sm font-semibold text-emerald-900">Eligibility Summary</p>
+                <p className="mt-1 text-xs text-emerald-800">
+                  You are eligible for this role based on your profile and CV.
+                </p>
+                <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                  {selectedJobRequirementRows.length > 0 ? (
+                    selectedJobRequirementRows.map((row) => <li key={`selected-${row}`}>{row}</li>)
+                  ) : (
+                    <li>No strict requirements were set by the company.</li>
+                  )}
+                </ul>
+                {selectedMatchedSkills.length > 0 && (
+                  <p className="mt-2 text-xs font-medium text-emerald-700">
+                    Matched skills: {selectedMatchedSkills.join(', ')}
+                  </p>
+                )}
               </div>
 
               <form onSubmit={handleSubmitApplication} className="space-y-6">
