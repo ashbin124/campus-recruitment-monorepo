@@ -70,3 +70,4 @@ See:
 
 - `docs/DEPLOYMENT.md`
 - `docs/OPERATIONS.md`
+- `docs/FULL_PROJECT_DOCUMENTATION.md` (interview-ready full project document)
