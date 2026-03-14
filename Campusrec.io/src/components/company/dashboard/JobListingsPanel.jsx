@@ -1,4 +1,5 @@
-import { FiClock, FiEdit2, FiMapPin, FiTrash2 } from 'react-icons/fi';
+import { useMemo, useState } from 'react';
+import { FiClock, FiEdit2, FiMapPin, FiSearch, FiTrash2 } from 'react-icons/fi';
 
 function toJobTypeLabel(value) {
   const raw = String(value || 'FULL_TIME')
@@ -25,12 +26,19 @@ function toDateTimeLabel(value) {
   }
 }
 
-function isJobOpen(job) {
-  if (!job || job.isClosed) return false;
-  if (!job.applicationDeadline) return true;
+function getJobLifecycle(job) {
+  if (!job) return 'CLOSED';
+  if (job.isClosed) return 'CLOSED';
+  if (!job.applicationDeadline) return 'OPEN';
   const deadline = new Date(job.applicationDeadline).getTime();
-  if (!Number.isFinite(deadline)) return false;
-  return deadline > Date.now();
+  if (!Number.isFinite(deadline)) return 'CLOSED';
+  return deadline > Date.now() ? 'OPEN' : 'EXPIRED';
+}
+
+function toTimestamp(value) {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : 0;
 }
 
 function getJobTypeTheme(value) {
@@ -96,7 +104,60 @@ function hasInterviewSchedule(job) {
 }
 
 export default function JobListingsPanel({ jobs, deletingJobId, onEdit, onRequestDelete }) {
-  const openJobs = jobs.filter((job) => isJobOpen(job)).length;
+  const [searchText, setSearchText] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [scheduleFilter, setScheduleFilter] = useState('ALL');
+  const [sortBy, setSortBy] = useState('DEADLINE');
+
+  const lifecycleCounts = useMemo(() => {
+    const counts = { OPEN: 0, CLOSED: 0, EXPIRED: 0 };
+    for (const job of jobs) {
+      const lifecycle = getJobLifecycle(job);
+      counts[lifecycle] = Number(counts[lifecycle] || 0) + 1;
+    }
+    return counts;
+  }, [jobs]);
+
+  const filteredJobs = useMemo(() => {
+    const search = searchText.trim().toLowerCase();
+    const scoped = jobs.filter((job) => {
+      const lifecycle = getJobLifecycle(job);
+      const scheduleReady = hasInterviewSchedule(job);
+      const matchesSearch =
+        !search ||
+        String(job.title || '')
+          .toLowerCase()
+          .includes(search) ||
+        String(job.location || '')
+          .toLowerCase()
+          .includes(search);
+      const matchesStatus = statusFilter === 'ALL' || lifecycle === statusFilter;
+      const matchesSchedule =
+        scheduleFilter === 'ALL' || (scheduleFilter === 'READY' ? scheduleReady : !scheduleReady);
+      return matchesSearch && matchesStatus && matchesSchedule;
+    });
+
+    return [...scoped].sort((left, right) => {
+      if (sortBy === 'NEWEST') return toTimestamp(right.createdAt) - toTimestamp(left.createdAt);
+      if (sortBy === 'APPLICANTS') {
+        return Number(right.applicationCount || 0) - Number(left.applicationCount || 0);
+      }
+
+      if (sortBy === 'STATUS') {
+        const rank = { OPEN: 0, EXPIRED: 1, CLOSED: 2 };
+        const leftRank = rank[getJobLifecycle(left)] ?? 99;
+        const rightRank = rank[getJobLifecycle(right)] ?? 99;
+        if (leftRank !== rightRank) return leftRank - rightRank;
+      }
+
+      const leftDeadline = toTimestamp(left.applicationDeadline);
+      const rightDeadline = toTimestamp(right.applicationDeadline);
+      if (leftDeadline && rightDeadline) return leftDeadline - rightDeadline;
+      if (leftDeadline) return -1;
+      if (rightDeadline) return 1;
+      return toTimestamp(right.createdAt) - toTimestamp(left.createdAt);
+    });
+  }, [jobs, searchText, statusFilter, scheduleFilter, sortBy]);
 
   return (
     <div className="section-shell">
@@ -105,19 +166,71 @@ export default function JobListingsPanel({ jobs, deletingJobId, onEdit, onReques
           <p className="section-kicker">Openings</p>
           <h3 className="section-title mt-2 text-xl">My Job Listings</h3>
           <p className="section-description">
-            {openJobs} open listing(s) / {jobs.length} total
+            {lifecycleCounts.OPEN} open / {lifecycleCounts.EXPIRED} expired /{' '}
+            {lifecycleCounts.CLOSED} closed
           </p>
         </div>
       </div>
 
+      <div className="toolbar-shell mt-4 grid gap-3 md:grid-cols-[1fr_150px_170px_170px]">
+        <label className="relative">
+          <FiSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+            placeholder="Search by title or location"
+            className="input-field pl-9"
+          />
+        </label>
+
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+          className="select-field"
+        >
+          <option value="ALL">All Status</option>
+          <option value="OPEN">Open</option>
+          <option value="EXPIRED">Expired</option>
+          <option value="CLOSED">Closed</option>
+        </select>
+
+        <select
+          value={scheduleFilter}
+          onChange={(event) => setScheduleFilter(event.target.value)}
+          className="select-field"
+        >
+          <option value="ALL">All Schedule</option>
+          <option value="READY">Auto-interview Ready</option>
+          <option value="MISSING">Schedule Missing</option>
+        </select>
+
+        <select
+          value={sortBy}
+          onChange={(event) => setSortBy(event.target.value)}
+          className="select-field"
+        >
+          <option value="DEADLINE">Sort: Deadline</option>
+          <option value="NEWEST">Sort: Newest</option>
+          <option value="APPLICANTS">Sort: Applicants</option>
+          <option value="STATUS">Sort: Status</option>
+        </select>
+      </div>
+
       <div className="mt-5 grid gap-4 md:grid-cols-2">
-        {jobs.map((job) => {
+        {filteredJobs.map((job) => {
           const typeTheme = getJobTypeTheme(job.type);
           const isRemoteRole = String(job.location || '')
             .toLowerCase()
             .includes('remote');
           const scheduleReady = hasInterviewSchedule(job);
-          const jobOpen = isJobOpen(job);
+          const lifecycle = getJobLifecycle(job);
+          const interviewDays = Array.isArray(job.interviewDates) ? job.interviewDates.length : 0;
+          const candidatesPerDay = Number.parseInt(String(job.interviewCandidatesPerDay || ''), 10);
+          const totalSlots =
+            interviewDays > 0 && Number.isInteger(candidatesPerDay) && candidatesPerDay > 0
+              ? interviewDays * candidatesPerDay
+              : 0;
 
           return (
             <article
@@ -156,12 +269,18 @@ export default function JobListingsPanel({ jobs, deletingJobId, onEdit, onReques
                     )}
                     <span
                       className={`inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold ${
-                        jobOpen
+                        lifecycle === 'OPEN'
                           ? 'border-emerald-200 bg-emerald-100 text-emerald-800'
-                          : 'border-rose-200 bg-rose-100 text-rose-800'
+                          : lifecycle === 'EXPIRED'
+                            ? 'border-amber-200 bg-amber-100 text-amber-800'
+                            : 'border-rose-200 bg-rose-100 text-rose-800'
                       }`}
                     >
-                      {jobOpen ? 'Open' : 'Closed'}
+                      {lifecycle === 'OPEN'
+                        ? 'Open'
+                        : lifecycle === 'EXPIRED'
+                          ? 'Expired'
+                          : 'Closed'}
                     </span>
                   </div>
                 </div>
@@ -188,6 +307,9 @@ export default function JobListingsPanel({ jobs, deletingJobId, onEdit, onReques
                   }`}
                 >
                   {scheduleReady ? 'Auto-interview ready' : 'Schedule missing'}
+                </span>
+                <span className="ml-2 inline-flex rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                  Slots: {totalSlots > 0 ? totalSlots : '-'}
                 </span>
               </div>
 
@@ -227,10 +349,8 @@ export default function JobListingsPanel({ jobs, deletingJobId, onEdit, onReques
           );
         })}
 
-        {jobs.length === 0 && (
-          <div className="empty-shell md:col-span-2">
-            No jobs posted yet. Publish your first role to start receiving applications.
-          </div>
+        {filteredJobs.length === 0 && (
+          <div className="empty-shell md:col-span-2">No jobs match the current filters.</div>
         )}
       </div>
     </div>

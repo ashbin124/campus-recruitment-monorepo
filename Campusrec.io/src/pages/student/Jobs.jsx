@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation as useRouterLocation, useNavigate } from 'react-router-dom';
-import { FiArrowUpRight, FiBriefcase, FiClock, FiMapPin } from 'react-icons/fi';
+import {
+  FiAlertTriangle,
+  FiArrowUpRight,
+  FiBriefcase,
+  FiCheckCircle,
+  FiClock,
+  FiFilter,
+  FiMapPin,
+  FiSliders,
+  FiXCircle,
+} from 'react-icons/fi';
 import api from '../../lib/api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '@/context/ToastContext.jsx';
@@ -19,6 +29,47 @@ function toJobTypeLabel(value) {
     .replace(/_/g, ' ')
     .toLowerCase();
   return raw.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function toTimestamp(value) {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function isRemoteLocation(value) {
+  return String(value || '')
+    .toLowerCase()
+    .includes('remote');
+}
+
+function toPercent(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.max(0, Math.min(100, Math.round(number)));
+}
+
+function uniqueList(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map((item) => String(item || '').trim()).filter(Boolean))];
+}
+
+function getDeadlineLabel(value) {
+  if (!value) return 'No deadline';
+  try {
+    const now = new Date();
+    const deadline = new Date(value);
+    if (Number.isNaN(deadline.getTime())) return 'No deadline';
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const daysLeft = Math.ceil((deadline.getTime() - now.getTime()) / msPerDay);
+    const formatted = deadline.toLocaleDateString();
+    if (daysLeft < 0) return `Closed on ${formatted}`;
+    if (daysLeft === 0) return `Closes today (${formatted})`;
+    if (daysLeft === 1) return `Closes tomorrow (${formatted})`;
+    return `Closes in ${daysLeft} days (${formatted})`;
+  } catch {
+    return 'No deadline';
+  }
 }
 
 function getJobTypeTheme(value) {
@@ -145,6 +196,21 @@ const MATCH_TABS = [
   { id: 'NOT_ELIGIBLE', label: 'Not Eligible' },
 ];
 
+const JOB_TYPE_FILTERS = [
+  { id: 'ALL', label: 'All Types' },
+  { id: 'FULL_TIME', label: 'Full Time' },
+  { id: 'INTERNSHIP', label: 'Internship' },
+  { id: 'PART_TIME', label: 'Part Time' },
+  { id: 'CONTRACT', label: 'Contract' },
+];
+
+const SORT_OPTIONS = [
+  { id: 'BEST_MATCH', label: 'Best Match' },
+  { id: 'NEWEST', label: 'Newest' },
+  { id: 'DEADLINE', label: 'Application Deadline' },
+  { id: 'COMPANY', label: 'Company Name' },
+];
+
 const Jobs = () => {
   const { user } = useAuth();
   const toast = useToast();
@@ -156,8 +222,17 @@ const Jobs = () => {
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
   const [companyIdFilter, setCompanyIdFilter] = useState('');
+  const [jobTypeFilter, setJobTypeFilter] = useState('ALL');
+  const [remoteOnly, setRemoteOnly] = useState(false);
+  const [sortBy, setSortBy] = useState('BEST_MATCH');
   const [activeTierTab, setActiveTierTab] = useState('ELIGIBLE');
   const [loading, setLoading] = useState(false);
+  const [profileSnapshot, setProfileSnapshot] = useState({
+    phone: '',
+    resumeUrl: '',
+    completionPercent: 0,
+    missingFields: [],
+  });
 
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -167,10 +242,13 @@ const Jobs = () => {
     phone: '',
     cv: null,
   });
+  const [useProfileResume, setUseProfileResume] = useState(false);
   const [applyErrors, setApplyErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const hasActiveFilters = Boolean(title || location || companyIdFilter);
+  const hasActiveFilters = Boolean(
+    title || location || companyIdFilter || remoteOnly || jobTypeFilter !== 'ALL'
+  );
   const selectedJobRequirementRows = useMemo(
     () => buildRequirementRows(selectedJob),
     [selectedJob]
@@ -185,11 +263,7 @@ const Jobs = () => {
   }, [selectedJob]);
 
   const stats = useMemo(() => {
-    const remote = jobs.filter((job) =>
-      String(job.location || '')
-        .toLowerCase()
-        .includes('remote')
-    ).length;
+    const remote = jobs.filter((job) => isRemoteLocation(job.location)).length;
     const eligible = jobs.filter((job) => getMatchTier(job) === 'ELIGIBLE').length;
     const nearMatch = jobs.filter((job) => getMatchTier(job) === 'NEAR_MATCH').length;
     const notEligible = jobs.filter((job) => getMatchTier(job) === 'NOT_ELIGIBLE').length;
@@ -203,9 +277,56 @@ const Jobs = () => {
     };
   }, [jobs, hasActiveFilters]);
 
+  const tierCounts = useMemo(() => {
+    const counts = {
+      ELIGIBLE: 0,
+      NEAR_MATCH: 0,
+      NOT_ELIGIBLE: 0,
+    };
+    for (const job of jobs) {
+      const tier = getMatchTier(job);
+      counts[tier] = Number(counts[tier] || 0) + 1;
+    }
+    return counts;
+  }, [jobs]);
+
   const filteredJobs = useMemo(() => {
-    return jobs.filter((job) => getMatchTier(job) === activeTierTab);
-  }, [jobs, activeTierTab]);
+    const tierScoped = jobs.filter((job) => getMatchTier(job) === activeTierTab);
+    const typeScoped =
+      jobTypeFilter === 'ALL'
+        ? tierScoped
+        : tierScoped.filter((job) => String(job?.type || '').toUpperCase() === jobTypeFilter);
+    const locationScoped = remoteOnly
+      ? typeScoped.filter((job) => isRemoteLocation(job.location))
+      : typeScoped;
+
+    const sorted = [...locationScoped].sort((left, right) => {
+      if (sortBy === 'NEWEST') return toTimestamp(right.createdAt) - toTimestamp(left.createdAt);
+      if (sortBy === 'DEADLINE') {
+        const leftDeadline = toTimestamp(left.applicationDeadline);
+        const rightDeadline = toTimestamp(right.applicationDeadline);
+        if (leftDeadline && rightDeadline) return leftDeadline - rightDeadline;
+        if (leftDeadline) return -1;
+        if (rightDeadline) return 1;
+        return toTimestamp(right.createdAt) - toTimestamp(left.createdAt);
+      }
+      if (sortBy === 'COMPANY') {
+        return String(left?.company?.name || '').localeCompare(String(right?.company?.name || ''));
+      }
+
+      const leftMatch = Number(left?.matchScore || 0);
+      const rightMatch = Number(right?.matchScore || 0);
+      if (rightMatch !== leftMatch) return rightMatch - leftMatch;
+
+      const leftFlexible = Number(left?.matchSummary?.flexibleMatchPercent || 0);
+      const rightFlexible = Number(right?.matchSummary?.flexibleMatchPercent || 0);
+      if (rightFlexible !== leftFlexible) return rightFlexible - leftFlexible;
+
+      return toTimestamp(right.createdAt) - toTimestamp(left.createdAt);
+    });
+
+    return sorted;
+  }, [jobs, activeTierTab, jobTypeFilter, remoteOnly, sortBy]);
 
   async function loadJobs(
     pTitle = title,
@@ -251,6 +372,52 @@ const Jobs = () => {
     }
   }
 
+  async function loadProfileSnapshot() {
+    try {
+      const { data } = await api.get('/student/profile');
+      const skillsList = uniqueList(
+        Array.isArray(data?.skills)
+          ? data.skills
+          : String(data?.skills || '')
+              .split(',')
+              .map((item) => item.trim())
+      );
+
+      const checks = [
+        { key: 'phone', label: 'Phone number', valid: Boolean(String(data?.phone || '').trim()) },
+        { key: 'degree', label: 'Degree', valid: Boolean(String(data?.degree || '').trim()) },
+        {
+          key: 'experienceYears',
+          label: 'Experience years',
+          valid: data?.experienceYears != null && Number(data.experienceYears) >= 0,
+        },
+        { key: 'skills', label: 'Skills list', valid: skillsList.length > 0 },
+        {
+          key: 'resume',
+          label: 'Resume / CV',
+          valid: Boolean(String(data?.resumeUrl || '').trim()),
+        },
+      ];
+
+      const completed = checks.filter((item) => item.valid).length;
+      const completionPercent = Math.round((completed / checks.length) * 100);
+      const missingFields = checks.filter((item) => !item.valid).map((item) => item.label);
+
+      setProfileSnapshot({
+        phone: String(data?.phone || '').trim(),
+        resumeUrl: String(data?.resumeUrl || '').trim(),
+        completionPercent,
+        missingFields,
+      });
+    } catch (error) {
+      console.error('Error loading profile snapshot:', error);
+      setProfileSnapshot((prev) => ({
+        ...prev,
+        missingFields: prev.missingFields.length ? prev.missingFields : ['Profile details'],
+      }));
+    }
+  }
+
   const handleApplyClick = (job) => {
     if (!job?.matchSummary?.eligible) {
       const firstReason = Array.isArray(job?.matchSummary?.reasons)
@@ -268,9 +435,10 @@ const Jobs = () => {
     setApplicationData({
       name: user?.name || '',
       email: user?.email || '',
-      phone: user?.phone || '',
+      phone: profileSnapshot.phone || '',
       cv: null,
     });
+    setUseProfileResume(Boolean(profileSnapshot.resumeUrl));
     setApplyErrors({});
     setShowApplyModal(true);
   };
@@ -291,6 +459,7 @@ const Jobs = () => {
       return;
     }
     setApplicationData((prev) => ({ ...prev, cv: file }));
+    setUseProfileResume(false);
     setApplyErrors((prev) => ({ ...prev, cv: '' }));
   };
 
@@ -298,11 +467,14 @@ const Jobs = () => {
     event.preventDefault();
     if (!selectedJob) return;
 
+    const canUseProfileResume = useProfileResume && Boolean(profileSnapshot.resumeUrl);
     const nextErrors = {};
     if (!String(applicationData.name || '').trim()) nextErrors.name = 'Name is required.';
     if (!String(applicationData.email || '').trim()) nextErrors.email = 'Email is required.';
     if (!String(applicationData.phone || '').trim()) nextErrors.phone = 'Phone number is required.';
-    if (!applicationData.cv) nextErrors.cv = 'Please upload your CV.';
+    if (!canUseProfileResume && !applicationData.cv) {
+      nextErrors.cv = 'Upload a CV or use your profile resume.';
+    }
     if (Object.keys(nextErrors).length > 0) {
       setApplyErrors(nextErrors);
       toast.warning('Please complete all required fields.');
@@ -311,29 +483,37 @@ const Jobs = () => {
 
     setIsSubmitting(true);
     try {
-      const formData = new FormData();
-      formData.append('resume', applicationData.cv);
+      let resumeUrl = '';
+      if (canUseProfileResume) {
+        resumeUrl = profileSnapshot.resumeUrl;
+      } else if (applicationData.cv) {
+        const formData = new FormData();
+        formData.append('resume', applicationData.cv);
 
-      const uploadResponse = await api.post('/upload/resume', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+        const uploadResponse = await api.post('/upload/resume', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
 
-      if (!uploadResponse.data.success) {
-        throw new Error(uploadResponse.data.message || 'Failed to upload resume');
+        if (!uploadResponse.data.success) {
+          throw new Error(uploadResponse.data.message || 'Failed to upload resume');
+        }
+        resumeUrl = uploadResponse.data.url;
       }
 
       await api.post(`/applications/jobs/${selectedJob.id}/apply`, {
         name: applicationData.name,
         email: applicationData.email,
         phone: applicationData.phone,
-        resumeUrl: uploadResponse.data.url,
+        resumeUrl,
       });
 
       toast.success('Application submitted successfully.');
       setApplicationData({ name: '', email: '', phone: '', cv: null });
+      setUseProfileResume(Boolean(profileSnapshot.resumeUrl));
       setApplyErrors({});
       setShowApplyModal(false);
       setSelectedJob(null);
+      await loadProfileSnapshot();
     } catch (error) {
       console.error('Error submitting application:', error);
       toast.apiError(error, 'Failed to submit application. Please try again.');
@@ -352,6 +532,10 @@ const Jobs = () => {
     loadJobs(mergedTitle, l, companyId, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routerLocation.search]);
+
+  useEffect(() => {
+    loadProfileSnapshot();
+  }, []);
 
   return (
     <>
@@ -398,7 +582,68 @@ const Jobs = () => {
                   Show All
                 </button>
               </div>
+
+              <div className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr_auto_auto]">
+                <label className="text-soft inline-flex items-center gap-2 rounded-lg border border-slate-200/70 bg-white/75 px-3 py-2 text-xs font-semibold uppercase tracking-wide">
+                  <FiFilter className="h-4 w-4" />
+                  <span className="sr-only">Job Type</span>
+                  <select
+                    value={jobTypeFilter}
+                    onChange={(event) => setJobTypeFilter(event.target.value)}
+                    className="w-full border-none bg-transparent p-0 text-xs font-semibold uppercase tracking-wide focus:outline-none focus:ring-0"
+                    aria-label="Filter by job type"
+                  >
+                    {JOB_TYPE_FILTERS.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="text-soft inline-flex items-center gap-2 rounded-lg border border-slate-200/70 bg-white/75 px-3 py-2 text-xs font-semibold uppercase tracking-wide">
+                  <FiSliders className="h-4 w-4" />
+                  <span className="sr-only">Sort jobs</span>
+                  <select
+                    value={sortBy}
+                    onChange={(event) => setSortBy(event.target.value)}
+                    className="w-full border-none bg-transparent p-0 text-xs font-semibold uppercase tracking-wide focus:outline-none focus:ring-0"
+                    aria-label="Sort jobs"
+                  >
+                    {SORT_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => setRemoteOnly((prev) => !prev)}
+                  className={`inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                    remoteOnly
+                      ? 'border-cyan-400 bg-cyan-100 text-cyan-900'
+                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {remoteOnly ? 'Remote Only: On' : 'Remote Only'}
+                </button>
+
+                <div className="inline-flex items-center justify-center rounded-lg border border-slate-200/70 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  {filteredJobs.length} in view
+                </div>
+              </div>
             </div>
+
+            {profileSnapshot.missingFields.length > 0 && (
+              <div className="mt-3 rounded-lg border border-amber-200/80 bg-amber-100/80 px-3 py-2 text-xs text-amber-900">
+                <span className="font-semibold">
+                  Profile readiness {profileSnapshot.completionPercent}%.
+                </span>{' '}
+                Complete: {profileSnapshot.missingFields.join(', ')} to improve eligibility.
+              </div>
+            )}
 
             <div className="mt-6 grid grid-cols-2 gap-3 text-sm md:w-max md:grid-cols-5">
               <div className="student-jobs-stat rounded-lg border border-white/20 bg-white/10 px-3 py-2">
@@ -428,7 +673,7 @@ const Jobs = () => {
                     activeTierTab === tab.id ? 'segment-btn-active' : 'segment-btn-idle'
                   }`}
                 >
-                  {tab.label}
+                  {tab.label} ({tierCounts[tab.id] || 0})
                 </button>
               ))}
             </div>
@@ -461,6 +706,30 @@ const Jobs = () => {
                       .map((item) => String(item || '').trim())
                       .filter(Boolean)
                   : [];
+                const details = job?.matchSummary?.details || {};
+                const mandatoryTotal = Number(
+                  details?.totalMandatoryGroups || details?.mandatoryGroups?.length || 0
+                );
+                const mandatoryMatched = Number(details?.matchedMandatoryGroups || 0);
+                const flexibleTotal = Number(
+                  details?.totalFlexibleGroups || details?.flexibleGroups?.length || 0
+                );
+                const flexibleMatched = Number(details?.matchedFlexibleGroups || 0);
+                const missingMandatory = uniqueList(
+                  details?.missingMandatorySkills ||
+                    details?.missingHardSkills ||
+                    details?.missingCompulsorySkills
+                );
+                const missingFlexible = uniqueList(
+                  details?.missingFlexibleSkills || details?.missingRequiredSkills
+                );
+                const flexiblePercent = toPercent(
+                  job?.matchSummary?.flexibleMatchPercent ?? details?.flexibleMatchPercent
+                );
+                const flexibleThreshold = toPercent(
+                  job?.matchSummary?.flexibleMatchThresholdPercent ??
+                    details?.effectiveFlexibleThresholdPercent
+                );
                 const eligibilityReasons = Array.isArray(job?.matchSummary?.reasons)
                   ? job.matchSummary.reasons
                       .map((item) => String(item || '').trim())
@@ -474,6 +743,7 @@ const Jobs = () => {
                 const tier = getMatchTier(job);
                 const isEligible = tier === 'ELIGIBLE';
                 const isNearMatch = tier === 'NEAR_MATCH';
+                const deadlineLabel = getDeadlineLabel(job.applicationDeadline);
 
                 return (
                   <article
@@ -551,6 +821,9 @@ const Jobs = () => {
                           <FiClock className="h-3.5 w-3.5 text-amber-700" />
                           Posted {toDateLabel(job.createdAt)}
                         </span>
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-violet-200 bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-800">
+                          {deadlineLabel}
+                        </span>
                         <span
                           className={`student-job-chip student-job-chip-mode inline-flex rounded-md border px-2.5 py-1 text-xs font-medium ${
                             isRemoteRole
@@ -579,6 +852,41 @@ const Jobs = () => {
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-current/70">
                           Requirement Check
                         </p>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                          <div className="rounded-md border border-slate-200 bg-white/70 px-2.5 py-2 text-xs">
+                            <p className="font-semibold text-slate-700">Compulsory Groups</p>
+                            <p className="mt-1 text-slate-600">
+                              {mandatoryMatched}/{mandatoryTotal || 0} matched
+                            </p>
+                          </div>
+                          <div className="rounded-md border border-slate-200 bg-white/70 px-2.5 py-2 text-xs">
+                            <p className="font-semibold text-slate-700">Flexible Match</p>
+                            <p className="mt-1 text-slate-600">
+                              {flexiblePercent}% (min {flexibleThreshold}%)
+                            </p>
+                          </div>
+                        </div>
+
+                        {flexibleTotal > 0 && (
+                          <div className="mt-2 rounded-md border border-slate-200 bg-white/70 p-2">
+                            <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                              <div
+                                className={`h-full rounded-full ${
+                                  flexiblePercent >= flexibleThreshold
+                                    ? 'bg-emerald-500'
+                                    : isNearMatch
+                                      ? 'bg-amber-500'
+                                      : 'bg-rose-500'
+                                }`}
+                                style={{ width: `${flexiblePercent}%` }}
+                              />
+                            </div>
+                            <p className="mt-1 text-[11px] text-slate-600">
+                              Flexible groups matched: {flexibleMatched}/{flexibleTotal}
+                            </p>
+                          </div>
+                        )}
+
                         {requirementRows.length > 0 ? (
                           <ul className="mt-1 space-y-1 text-sm leading-5 text-slate-700">
                             {requirementRows.map((row) => (
@@ -597,6 +905,26 @@ const Jobs = () => {
                             Matched skills: {matchedSkills.join(', ')}
                           </p>
                         )}
+                        {!isEligible && missingMandatory.length > 0 && (
+                          <div className="mt-2 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">
+                              Missing compulsory skills
+                            </p>
+                            <p className="mt-1 text-xs text-rose-800">
+                              {missingMandatory.join(', ')}
+                            </p>
+                          </div>
+                        )}
+                        {!isEligible && missingFlexible.length > 0 && (
+                          <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                              Missing flexible skills
+                            </p>
+                            <p className="mt-1 text-xs text-amber-800">
+                              {missingFlexible.join(', ')}
+                            </p>
+                          </div>
+                        )}
                         {!isEligible && eligibilityReasons.length > 0 && (
                           <div
                             className={`mt-2 rounded-md border p-2 ${
@@ -612,15 +940,36 @@ const Jobs = () => {
                             >
                               {isNearMatch ? 'Near match gap' : 'Why you cannot apply'}
                             </p>
-                            <ul
+                            <div
                               className={`mt-1 space-y-1 text-xs ${
                                 isNearMatch ? 'text-amber-800' : 'text-rose-800'
                               }`}
                             >
                               {eligibilityReasons.map((reason) => (
-                                <li key={`${job.id}-reason-${reason}`}>{reason}</li>
+                                <p
+                                  key={`${job.id}-reason-${reason}`}
+                                  className="flex items-start gap-1.5"
+                                >
+                                  {isNearMatch ? (
+                                    <FiAlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                  ) : (
+                                    <FiXCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                  )}
+                                  <span>{reason}</span>
+                                </p>
                               ))}
-                            </ul>
+                            </div>
+                          </div>
+                        )}
+                        {isEligible && (
+                          <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-2">
+                            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                              <FiCheckCircle className="h-3.5 w-3.5" />
+                              Ready To Apply
+                            </p>
+                            <p className="mt-1 text-xs text-emerald-800">
+                              You passed all compulsory checks and meet the flexible threshold.
+                            </p>
                           </div>
                         )}
                         {eligibilityAdvisories.length > 0 && (
@@ -677,7 +1026,8 @@ const Jobs = () => {
                 jobs found
               </h3>
               <p className="mt-1 text-sm text-gray-600">
-                No jobs match your current search filters. Try clearing filters and searching again.
+                No jobs match your current search and filter settings. Try changing job type,
+                remote-only, or sorting.
               </p>
               <button type="button" onClick={() => loadJobs('', '', '')} className="btn-brand mt-4">
                 Clear Filters
@@ -729,6 +1079,11 @@ const Jobs = () => {
                 <p className="mt-1 text-xs text-emerald-800">
                   You are eligible for this role based on your profile and CV.
                 </p>
+                <p className="mt-1 text-xs text-emerald-800">
+                  Flexible match: {toPercent(selectedJob?.matchSummary?.flexibleMatchPercent || 0)}%
+                  (threshold{' '}
+                  {toPercent(selectedJob?.matchSummary?.flexibleMatchThresholdPercent || 0)}%)
+                </p>
                 <ul className="mt-2 space-y-1 text-sm text-slate-700">
                   {selectedJobRequirementRows.length > 0 ? (
                     selectedJobRequirementRows.map((row) => <li key={`selected-${row}`}>{row}</li>)
@@ -739,6 +1094,31 @@ const Jobs = () => {
                 {selectedMatchedSkills.length > 0 && (
                   <p className="mt-2 text-xs font-medium text-emerald-700">
                     Matched skills: {selectedMatchedSkills.join(', ')}
+                  </p>
+                )}
+              </div>
+
+              <div
+                className={`mb-6 rounded-lg border p-4 ${
+                  profileSnapshot.missingFields.length === 0
+                    ? 'border-sky-200 bg-sky-50/70'
+                    : 'border-amber-200 bg-amber-50/70'
+                }`}
+              >
+                <p
+                  className={`text-sm font-semibold ${
+                    profileSnapshot.missingFields.length === 0 ? 'text-sky-900' : 'text-amber-900'
+                  }`}
+                >
+                  Profile Readiness: {profileSnapshot.completionPercent}%
+                </p>
+                {profileSnapshot.missingFields.length === 0 ? (
+                  <p className="mt-1 text-xs text-sky-800">
+                    Your profile is complete for applying quickly.
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs text-amber-800">
+                    Missing details: {profileSnapshot.missingFields.join(', ')}.
                   </p>
                 )}
               </div>
@@ -798,26 +1178,57 @@ const Jobs = () => {
 
                   <div className="space-y-2">
                     <span className="block text-sm font-medium text-gray-700">Resume / CV</span>
+                    {profileSnapshot.resumeUrl && (
+                      <label className="flex items-center gap-2 text-xs text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={useProfileResume}
+                          onChange={(event) => {
+                            const next = event.target.checked;
+                            setUseProfileResume(next);
+                            if (next) {
+                              setApplicationData((prev) => ({ ...prev, cv: null }));
+                              if (fileInputRef.current) fileInputRef.current.value = '';
+                              setApplyErrors((prev) => ({ ...prev, cv: '' }));
+                            }
+                          }}
+                          className="h-4 w-4 rounded border-gray-300 text-brand-600"
+                        />
+                        Use resume already saved in profile
+                      </label>
+                    )}
                     <div
                       className={`flex items-center justify-between rounded-lg border-2 border-dashed px-4 py-3 ${
                         applyErrors.cv ? 'border-red-300 bg-red-50/40' : 'border-gray-300'
                       }`}
                     >
                       <span className="truncate text-sm text-gray-600">
-                        {applicationData.cv ? applicationData.cv.name : 'No file selected'}
+                        {useProfileResume && profileSnapshot.resumeUrl
+                          ? 'Using profile resume'
+                          : applicationData.cv
+                            ? applicationData.cv.name
+                            : 'No file selected'}
                       </span>
-                      <label className="btn-soft cursor-pointer px-3 py-1.5 text-sm text-brand-700">
+                      <label
+                        className={`btn-soft cursor-pointer px-3 py-1.5 text-sm text-brand-700 ${
+                          useProfileResume ? 'pointer-events-none opacity-50' : ''
+                        }`}
+                      >
                         Upload
                         <input
                           type="file"
                           ref={fileInputRef}
                           onChange={handleFileChange}
                           className="sr-only"
-                          required={!applicationData.cv}
+                          disabled={useProfileResume}
+                          required={!applicationData.cv && !useProfileResume}
                         />
                       </label>
                     </div>
-                    <p className="text-xs text-gray-500">Any file type, max 10MB.</p>
+                    <p className="text-xs text-gray-500">
+                      CV is required for eligibility scan. Upload a new file or use your saved
+                      profile resume.
+                    </p>
                     {applyErrors.cv && <p className="text-xs text-red-600">{applyErrors.cv}</p>}
                   </div>
                 </div>
@@ -831,11 +1242,11 @@ const Jobs = () => {
                   />
                   <span>
                     I agree to the{' '}
-                    <a href="/terms" className="text-brand-700 hover:underline">
+                    <a href="/terms" className="app-link">
                       Terms
                     </a>{' '}
                     and{' '}
-                    <a href="/privacy" className="text-brand-700 hover:underline">
+                    <a href="/privacy" className="app-link">
                       Privacy Policy
                     </a>
                     .

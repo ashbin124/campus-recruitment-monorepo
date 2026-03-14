@@ -7,6 +7,7 @@ import AdminLayout from './layouts/AdminLayout.jsx';
 import StudentDashboard from './pages/student/Dashboard.jsx';
 import Jobs from './pages/student/Jobs.jsx';
 import Profile from './pages/student/Profile.jsx';
+import StudentApplications from './pages/student/Applications.jsx';
 import CompanyDashboard from './pages/company/Dashboard.jsx';
 import Applications from './pages/company/Applications.jsx';
 import AdminOverview from './pages/admin/Overview.jsx';
@@ -92,6 +93,16 @@ export default function App() {
           <ProtectedRoute roles={['STUDENT']}>
             <StudentLayout>
               <Profile />
+            </StudentLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/applications"
+        element={
+          <ProtectedRoute roles={['STUDENT']}>
+            <StudentLayout>
+              <StudentApplications />
             </StudentLayout>
           </ProtectedRoute>
         }

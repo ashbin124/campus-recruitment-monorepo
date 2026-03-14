@@ -128,8 +128,8 @@ export default function DataTable({
   return (
     <div className="surface-card overflow-hidden">
       <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/70 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-        <label className="inline-flex items-center gap-2 text-xs text-gray-500">
+        <h3 className="text-main text-lg font-semibold">{title}</h3>
+        <label className="text-soft inline-flex items-center gap-2 text-xs">
           Rows
           <select
             value={pageSize}
@@ -164,7 +164,7 @@ export default function DataTable({
                       <button
                         type="button"
                         onClick={() => toggleSort(column)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-left text-slate-700 transition hover:border-slate-200 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+                        className="text-muted inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-left transition hover:border-slate-200 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
                       >
                         <span>{column.title}</span>
                         <span
@@ -196,7 +196,7 @@ export default function DataTable({
                   {normalizedColumns.map((column) => (
                     <td
                       key={`${item[keyField]}-${column.key}`}
-                      className="whitespace-nowrap px-6 py-4 text-sm text-slate-900"
+                      className="text-main whitespace-nowrap px-6 py-4 text-sm"
                     >
                       {formatCell(valueByPath(item, column.key), column, item)}
                     </td>
@@ -207,7 +207,7 @@ export default function DataTable({
               <tr>
                 <td
                   colSpan={normalizedColumns.length}
-                  className="px-6 py-8 text-center text-sm text-gray-500"
+                  className="text-soft px-6 py-8 text-center text-sm"
                 >
                   {emptyMessage}
                 </td>
@@ -219,7 +219,7 @@ export default function DataTable({
 
       {sortedData.length > 0 && (
         <div className="flex flex-col gap-3 border-t border-slate-200 px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-slate-700">
+          <p className="text-muted text-sm">
             Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
             <span className="font-medium">
               {Math.min(startIndex + pageSize, sortedData.length)}

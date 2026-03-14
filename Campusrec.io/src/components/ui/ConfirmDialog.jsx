@@ -52,7 +52,7 @@ export default function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !busy) onCancel?.();
       }}
@@ -66,10 +66,10 @@ export default function ConfirmDialog({
         className="w-full max-w-lg surface-card p-6 shadow-xl"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <h2 id={titleId} className="text-lg font-semibold text-gray-900">
+        <h2 id={titleId} className="text-main text-lg font-semibold">
           {title}
         </h2>
-        <p id={descriptionId} className="mt-2 text-sm text-gray-600">
+        <p id={descriptionId} className="text-soft mt-2 text-sm">
           {description}
         </p>
         {children ? <div className="mt-4">{children}</div> : null}

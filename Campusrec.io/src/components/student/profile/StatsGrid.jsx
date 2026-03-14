@@ -9,8 +9,8 @@ function StatCard({ label, value, icon }) {
           <IconComponent className="h-4.5 w-4.5" />
         </span>
         <div>
-          <p className="text-xl font-semibold text-gray-900">{value}</p>
-          <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
+          <p className="text-main text-xl font-semibold">{value}</p>
+          <p className="text-soft text-xs uppercase tracking-wide">{label}</p>
         </div>
       </div>
     </div>

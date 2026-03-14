@@ -15,8 +15,8 @@ export default function Footer() {
       <div className="page-wrap py-8">
         <div className="surface-card grid gap-6 bg-gradient-to-r from-white to-slate-50/70 p-6 md:grid-cols-[1.5fr_1fr_auto] md:items-center">
           <div>
-            <p className="text-base font-semibold text-gray-900">Campus Recruitment</p>
-            <p className="mt-1 text-sm text-gray-600">
+            <p className="text-main text-base font-semibold">Campus Recruitment</p>
+            <p className="text-soft mt-1 text-sm">
               One workspace for students, companies, and admins.
             </p>
           </div>
@@ -46,7 +46,7 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={item.label}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900"
+                  className="btn-soft h-9 w-9 rounded-full p-0"
                 >
                   <Icon className="h-4 w-4" />
                 </a>
@@ -55,7 +55,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-3 flex flex-col items-start justify-between gap-1 text-xs text-gray-500 md:flex-row md:items-center">
+        <div className="text-soft mt-3 flex flex-col items-start justify-between gap-1 text-xs md:flex-row md:items-center">
           <span>© {year} Campus Recruitment</span>
           <span>Built for modern campus hiring workflows.</span>
         </div>

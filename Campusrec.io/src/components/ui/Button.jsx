@@ -5,14 +5,14 @@ function cn(...classNames) {
 }
 
 const variantClasses = {
-  primary:
-    'bg-gradient-to-r from-brand-600 to-brand-700 text-white shadow-sm hover:-translate-y-0.5 hover:from-brand-700 hover:to-brand-800',
-  secondary:
-    'border border-slate-300 bg-white text-slate-700 shadow-sm hover:-translate-y-0.5 hover:bg-slate-50',
-  dark: 'bg-slate-900 text-white hover:-translate-y-0.5 hover:bg-black',
-  success: 'bg-emerald-600 text-white hover:-translate-y-0.5 hover:bg-emerald-700',
-  danger: 'bg-red-600 text-white hover:-translate-y-0.5 hover:bg-red-700',
-  ghost: 'bg-transparent text-slate-700 hover:bg-slate-100',
+  primary: 'btn-brand',
+  secondary: 'btn-soft',
+  dark: 'btn-dark',
+  success:
+    'inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-500',
+  danger: 'btn-danger',
+  ghost:
+    'inline-flex items-center justify-center gap-1.5 rounded-lg border border-transparent bg-transparent text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-500',
 };
 
 const sizeClasses = {
@@ -42,7 +42,7 @@ const Button = forwardRef(function Button(
       type={type}
       disabled={isDisabled}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
+        'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition',
         variantClasses[variant] || variantClasses.primary,
         sizeClasses[size] || sizeClasses.md,
         isDisabled ? 'cursor-not-allowed opacity-60' : '',

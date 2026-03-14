@@ -4,9 +4,13 @@ export default function JobsTab({
   jobSearch,
   jobTypeFilter,
   jobApplicantsFilter,
+  jobLifecycleFilter,
+  jobScheduleFilter,
   onJobSearchChange,
   onJobTypeFilterChange,
   onJobApplicantsFilterChange,
+  onJobLifecycleFilterChange,
+  onJobScheduleFilterChange,
   onClearFilters,
   onExportJobs,
   filteredJobs,
@@ -46,6 +50,28 @@ export default function JobsTab({
           <option value="ALL">All Jobs</option>
           <option value="WITH_APPLICANTS">With Applicants</option>
           <option value="WITHOUT_APPLICANTS">Without Applicants</option>
+        </select>
+
+        <select
+          value={jobLifecycleFilter}
+          onChange={(event) => onJobLifecycleFilterChange(event.target.value)}
+          className="select-field"
+        >
+          <option value="ALL">All Lifecycle</option>
+          <option value="OPEN">Open</option>
+          <option value="EXPIRED">Expired</option>
+          <option value="CLOSED">Closed</option>
+          <option value="AUTO_CLOSED">Auto Closed</option>
+        </select>
+
+        <select
+          value={jobScheduleFilter}
+          onChange={(event) => onJobScheduleFilterChange(event.target.value)}
+          className="select-field"
+        >
+          <option value="ALL">All Schedules</option>
+          <option value="READY">Schedule Ready</option>
+          <option value="MISSING">Schedule Missing</option>
         </select>
 
         <button type="button" onClick={onClearFilters} className={secondaryButtonClass}>

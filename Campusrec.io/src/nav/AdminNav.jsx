@@ -81,7 +81,7 @@ export default function AdminNav() {
         </button>
       </div>
       {open && (
-        <div className="mobile-nav-panel text-gray-900 md:hidden">
+        <div className="mobile-nav-panel text-main md:hidden">
           <nav className="page-wrap flex flex-col gap-2 py-4">
             <NavLink to="/admin" className={navLinkClass} onClick={() => setOpen(false)}>
               <FiGrid className="h-4 w-4" />

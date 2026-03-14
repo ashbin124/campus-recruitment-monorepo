@@ -1,6 +1,6 @@
 import { FiBell, FiBriefcase, FiCheckCircle, FiClock, FiUsers } from 'react-icons/fi';
 
-export default function HeroStats({ jobsCount, appCounts }) {
+export default function HeroStats({ jobsCount, appCounts, jobHealth }) {
   const cards = [
     { label: 'Open Jobs', value: jobsCount, icon: <FiBriefcase className="h-4 w-4" /> },
     { label: 'Total Apps', value: appCounts.total, icon: <FiUsers className="h-4 w-4" /> },
@@ -38,6 +38,20 @@ export default function HeroStats({ jobsCount, appCounts }) {
             </div>
           ))}
         </div>
+
+        {jobHealth && (
+          <div className="mt-4 grid gap-2 text-xs md:grid-cols-3">
+            <div className="rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+              Schedule Ready: {jobHealth.scheduleConfigured}/{jobHealth.total}
+            </div>
+            <div className="rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+              Schedule Missing: {jobHealth.scheduleMissing}
+            </div>
+            <div className="rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+              Total Interview Slots: {jobHealth.totalSlots}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

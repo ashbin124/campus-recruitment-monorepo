@@ -33,6 +33,26 @@ function formatDate(value) {
   }
 }
 
+function toTimestamp(value) {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function toScore(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function statusSortRank(value) {
+  const normalized = String(value || '').toUpperCase();
+  if (normalized === 'PENDING') return 0;
+  if (normalized === 'INTERVIEW') return 1;
+  if (normalized === 'ACCEPTED' || normalized === 'APPROVED') return 2;
+  if (normalized === 'REJECTED') return 3;
+  return 9;
+}
+
 export default function CandidatePipelinePanel({
   newApps,
   reviewedApps,
@@ -43,6 +63,9 @@ export default function CandidatePipelinePanel({
   onMarkAllReviewed,
 }) {
   const [activeQueue, setActiveQueue] = useState('new');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [jobFilter, setJobFilter] = useState('ALL');
+  const [sortBy, setSortBy] = useState('MATCH_DESC');
 
   const queueItems = activeQueue === 'new' ? newApps : reviewedApps;
   const queueTitle = activeQueue === 'new' ? 'New Queue' : 'Reviewed Queue';
@@ -53,6 +76,42 @@ export default function CandidatePipelinePanel({
   );
 
   const totalVisible = newApps.length + reviewedApps.length;
+  const jobOptions = useMemo(() => {
+    const map = new Map();
+    for (const item of [...newApps, ...reviewedApps]) {
+      const jobId = String(item?.job?.id || '').trim();
+      if (!jobId) continue;
+      if (!map.has(jobId)) {
+        map.set(jobId, item?.job?.title || `Job #${jobId}`);
+      }
+    }
+    return [...map.entries()]
+      .map(([id, title]) => ({ id, title }))
+      .sort((left, right) => left.title.localeCompare(right.title));
+  }, [newApps, reviewedApps]);
+
+  const filteredQueueItems = useMemo(() => {
+    const scoped = queueItems.filter((item) => {
+      const status = String(item?.status || 'PENDING').toUpperCase();
+      const jobId = String(item?.job?.id || '').trim();
+      const matchesStatus = statusFilter === 'ALL' || status === statusFilter;
+      const matchesJob = jobFilter === 'ALL' || jobId === jobFilter;
+      return matchesStatus && matchesJob;
+    });
+
+    return [...scoped].sort((left, right) => {
+      if (sortBy === 'NEWEST') return toTimestamp(right.createdAt) - toTimestamp(left.createdAt);
+      if (sortBy === 'OLDEST') return toTimestamp(left.createdAt) - toTimestamp(right.createdAt);
+      if (sortBy === 'STATUS') {
+        const rankDiff = statusSortRank(left.status) - statusSortRank(right.status);
+        if (rankDiff !== 0) return rankDiff;
+      }
+
+      const scoreDiff = toScore(right.matchScore) - toScore(left.matchScore);
+      if (scoreDiff !== 0) return scoreDiff;
+      return toTimestamp(left.createdAt) - toTimestamp(right.createdAt);
+    });
+  }, [queueItems, statusFilter, jobFilter, sortBy]);
 
   return (
     <aside className="section-shell">
@@ -94,6 +153,45 @@ export default function CandidatePipelinePanel({
         </button>
       </div>
 
+      <div className="mt-3 grid gap-3 md:grid-cols-3">
+        <select
+          value={jobFilter}
+          onChange={(event) => setJobFilter(event.target.value)}
+          className="select-field"
+        >
+          <option value="ALL">All Jobs</option>
+          {jobOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.title}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+          className="select-field"
+        >
+          <option value="ALL">All Statuses</option>
+          <option value="PENDING">Pending</option>
+          <option value="INTERVIEW">Interview</option>
+          <option value="ACCEPTED">Accepted</option>
+          <option value="APPROVED">Approved</option>
+          <option value="REJECTED">Rejected</option>
+        </select>
+
+        <select
+          value={sortBy}
+          onChange={(event) => setSortBy(event.target.value)}
+          className="select-field"
+        >
+          <option value="MATCH_DESC">Sort: Best Match</option>
+          <option value="NEWEST">Sort: Newest</option>
+          <option value="OLDEST">Sort: Oldest</option>
+          <option value="STATUS">Sort: Status</option>
+        </select>
+      </div>
+
       <div className="segmented-switch mt-4">
         <button
           type="button"
@@ -133,12 +231,12 @@ export default function CandidatePipelinePanel({
               activeQueue === 'new' ? 'bg-sky-100 text-sky-900' : 'bg-gray-100 text-gray-700'
             }`}
           >
-            {queueItems.length}
+            {filteredQueueItems.length}
           </span>
         </div>
 
         <div className="max-h-[26rem] space-y-2 overflow-auto pr-1">
-          {queueItems.map((item) => {
+          {filteredQueueItems.map((item) => {
             const needsReview = Boolean(item?.matchSummary?.details?.needsReview);
 
             return (
@@ -187,10 +285,17 @@ export default function CandidatePipelinePanel({
 
                 <div className="mt-2 flex items-center justify-between gap-2 text-xs text-gray-500">
                   <span className="line-clamp-1">{item?.student?.user?.email || '-'}</span>
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <FiCalendar className="h-3.5 w-3.5" />
-                    {formatDate(item.createdAt)}
-                  </span>
+                  <div className="inline-flex items-center gap-2 whitespace-nowrap">
+                    {Number.isFinite(Number(item?.matchScore)) && (
+                      <span className="rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                        {Math.round(Number(item.matchScore))}% match
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1">
+                      <FiCalendar className="h-3.5 w-3.5" />
+                      {formatDate(item.createdAt)}
+                    </span>
+                  </div>
                 </div>
 
                 {item?.student?.resumeUrl && (
@@ -203,11 +308,11 @@ export default function CandidatePipelinePanel({
             );
           })}
 
-          {queueItems.length === 0 && (
+          {filteredQueueItems.length === 0 && (
             <div className="empty-shell px-3 py-6 text-xs">
               {activeQueue === 'new'
-                ? 'No new applications right now.'
-                : 'No reviewed applications for this search.'}
+                ? 'No new applications match these filters.'
+                : 'No reviewed applications match these filters.'}
               {alternateQueueCount > 0 && (
                 <button
                   type="button"

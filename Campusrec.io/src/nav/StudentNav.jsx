@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { FiBriefcase, FiHome, FiLogOut, FiUser } from 'react-icons/fi';
+import { FiBriefcase, FiFileText, FiHome, FiLogOut, FiUser } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext.jsx';
 import ThemeToggle from '@/components/ui/ThemeToggle.jsx';
 
@@ -40,6 +40,10 @@ export default function StudentNav() {
           <NavLink to="/student/jobs" className={navLinkClass}>
             <FiBriefcase className="h-4 w-4" />
             Jobs
+          </NavLink>
+          <NavLink to="/student/applications" className={navLinkClass}>
+            <FiFileText className="h-4 w-4" />
+            Applications
           </NavLink>
           <NavLink to="/student/profile" className={navLinkClass}>
             <FiUser className="h-4 w-4" />
@@ -99,6 +103,10 @@ export default function StudentNav() {
             <NavLink to="/student/jobs" className={navLinkClass}>
               <FiBriefcase className="h-4 w-4" />
               Jobs
+            </NavLink>
+            <NavLink to="/student/applications" className={navLinkClass}>
+              <FiFileText className="h-4 w-4" />
+              Applications
             </NavLink>
             <NavLink to="/student/profile" className={navLinkClass}>
               <FiUser className="h-4 w-4" />

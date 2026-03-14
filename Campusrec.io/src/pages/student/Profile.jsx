@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../lib/api.js';
 import ProfileHero from '../../components/student/profile/ProfileHero.jsx';
@@ -138,6 +138,51 @@ export default function Profile() {
     .join('')
     .toUpperCase();
 
+  const profileReadiness = useMemo(() => {
+    const skillCount = String(formData.skills || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean).length;
+
+    const checks = [
+      { key: 'phone', label: 'Phone number', done: Boolean(String(formData.phone || '').trim()) },
+      { key: 'location', label: 'Location', done: Boolean(String(formData.location || '').trim()) },
+      { key: 'degree', label: 'Degree', done: Boolean(String(formData.degree || '').trim()) },
+      {
+        key: 'experienceYears',
+        label: 'Experience years',
+        done: formData.experienceYears !== '' && Number(formData.experienceYears) >= 0,
+      },
+      { key: 'skills', label: 'Skills', done: skillCount > 0 },
+      {
+        key: 'resume',
+        label: 'Resume / CV',
+        done: Boolean(formData.resume || String(formData.resumeUrl || '').trim()),
+      },
+      { key: 'bio', label: 'Short bio', done: Boolean(String(formData.bio || '').trim()) },
+    ];
+
+    const completedCount = checks.filter((item) => item.done).length;
+    const completionPercent = Math.round((completedCount / checks.length) * 100);
+    return {
+      checks,
+      completedCount,
+      totalCount: checks.length,
+      completionPercent,
+      missingLabels: checks.filter((item) => !item.done).map((item) => item.label),
+      hasResume: checks.find((item) => item.key === 'resume')?.done || false,
+    };
+  }, [
+    formData.phone,
+    formData.location,
+    formData.degree,
+    formData.experienceYears,
+    formData.skills,
+    formData.resume,
+    formData.resumeUrl,
+    formData.bio,
+  ]);
+
   const formInputClass = 'w-full input-field';
 
   function onInputChange(event) {
@@ -257,6 +302,9 @@ export default function Profile() {
         displayName={formData.name || 'Student Profile'}
         displayEmail={formData.email || user?.email || ''}
         initials={initials}
+        completionPercent={profileReadiness.completionPercent}
+        hasResume={profileReadiness.hasResume}
+        missingCount={profileReadiness.missingLabels.length}
         onStartEdit={() => {
           setIsEditing(true);
           setNotice({ type: '', message: '' });
@@ -269,6 +317,78 @@ export default function Profile() {
         message={notice.message}
         tone={notice.type === 'success' ? 'success' : 'error'}
       />
+
+      <section className="surface-card p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="section-kicker">Profile Readiness</p>
+            <h2 className="text-main mt-1 text-xl font-semibold">
+              {profileReadiness.completionPercent}% complete
+            </h2>
+            <p className="text-soft mt-1 text-sm">
+              Completed {profileReadiness.completedCount}/{profileReadiness.totalCount} required
+              sections for better matching.
+            </p>
+          </div>
+          <div className="w-full max-w-md">
+            <div className="h-3 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  profileReadiness.completionPercent >= 85
+                    ? 'bg-emerald-500'
+                    : profileReadiness.completionPercent >= 60
+                      ? 'bg-brand-500'
+                      : 'bg-amber-500'
+                }`}
+                style={{ width: `${profileReadiness.completionPercent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="surface-panel p-4">
+            <p className="text-main text-sm font-semibold">Checklist</p>
+            <div className="mt-2 space-y-1.5 text-sm">
+              {profileReadiness.checks.map((item) => (
+                <p
+                  key={item.key}
+                  className={`rounded-md border px-2.5 py-1.5 ${
+                    item.done
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      : 'border-amber-200 bg-amber-50 text-amber-800'
+                  }`}
+                >
+                  {item.done ? 'Done' : 'Missing'}: {item.label}
+                </p>
+              ))}
+            </div>
+          </div>
+
+          <div className="surface-panel p-4">
+            <p className="text-main text-sm font-semibold">CV Guidance</p>
+            <p className="text-soft mt-2 text-sm">
+              Keep your CV clear and machine-readable for better matching.
+            </p>
+            <ul className="text-muted mt-2 space-y-1 text-sm">
+              <li>Include phone and email inside the CV.</li>
+              <li>List skills as plain text (not image-only).</li>
+              <li>Add degree and total experience years clearly.</li>
+              <li>Keep file under 10MB, preferably PDF.</li>
+            </ul>
+            {formData.resumeUrl && (
+              <a
+                href={formData.resumeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="app-link mt-3 inline-flex text-sm font-medium"
+              >
+                View current uploaded resume
+              </a>
+            )}
+          </div>
+        </div>
+      </section>
 
       <StatsGrid stats={stats} />
 
@@ -311,6 +431,7 @@ export default function Profile() {
             onInputChange={onInputChange}
             onFileChange={onFileChange}
             toExternalHref={toExternalHref}
+            profileReadiness={profileReadiness}
           />
         ) : (
           <PasswordTab

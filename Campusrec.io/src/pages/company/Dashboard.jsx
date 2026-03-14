@@ -101,6 +101,32 @@ function toIsoDateTime(value) {
   return date.toISOString();
 }
 
+function toTimestamp(value) {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function getJobLifecycle(job) {
+  if (!job) return 'CLOSED';
+  if (job.isClosed) return 'CLOSED';
+  const deadline = toTimestamp(job.applicationDeadline);
+  if (deadline && deadline <= Date.now()) return 'EXPIRED';
+  return 'OPEN';
+}
+
+function isScheduleConfigured(job) {
+  const interviewDates = Array.isArray(job?.interviewDates) ? job.interviewDates : [];
+  const interviewStartTime = String(job?.interviewStartTime || '').trim();
+  const candidatesPerDay = Number.parseInt(String(job?.interviewCandidatesPerDay || ''), 10);
+  return Boolean(
+    interviewDates.length > 0 &&
+    /^([01]\d|2[0-3]):([0-5]\d)$/.test(interviewStartTime) &&
+    Number.isInteger(candidatesPerDay) &&
+    candidatesPerDay > 0
+  );
+}
+
 export default function CompanyDashboard() {
   const { user } = useAuth();
   const [title, setTitle] = useState('');
@@ -159,6 +185,40 @@ export default function CompanyDashboard() {
       accepted,
     };
   }, [appsWithMeta]);
+
+  const jobHealth = useMemo(() => {
+    const counts = {
+      total: jobs.length,
+      open: 0,
+      expired: 0,
+      closed: 0,
+      scheduleConfigured: 0,
+      scheduleMissing: 0,
+      totalSlots: 0,
+    };
+
+    for (const job of jobs) {
+      const lifecycle = getJobLifecycle(job);
+      if (lifecycle === 'OPEN') counts.open += 1;
+      else if (lifecycle === 'EXPIRED') counts.expired += 1;
+      else counts.closed += 1;
+
+      const configured = isScheduleConfigured(job);
+      if (configured) {
+        counts.scheduleConfigured += 1;
+      } else {
+        counts.scheduleMissing += 1;
+      }
+
+      const interviewDates = Array.isArray(job?.interviewDates) ? job.interviewDates : [];
+      const candidatesPerDay = Number.parseInt(String(job?.interviewCandidatesPerDay || ''), 10);
+      if (configured && Number.isInteger(candidatesPerDay) && candidatesPerDay > 0) {
+        counts.totalSlots += interviewDates.length * candidatesPerDay;
+      }
+    }
+
+    return counts;
+  }, [jobs]);
 
   const markAsReviewed = useCallback(
     (applicationId) => {
@@ -442,9 +502,39 @@ export default function CompanyDashboard() {
 
   return (
     <div className="space-y-6">
-      <HeroStats jobsCount={jobs.length} appCounts={appCounts} />
+      <HeroStats jobsCount={jobHealth.open} appCounts={appCounts} jobHealth={jobHealth} />
 
       <InlineAlert message={statusNotice?.text} tone={statusNotice?.type || 'info'} />
+
+      {(jobHealth.scheduleMissing > 0 || jobHealth.expired > 0) && (
+        <section className="surface-card p-4">
+          <p className="section-kicker">Workflow Health</p>
+          <h2 className="text-main mt-1 text-lg font-semibold">Action Needed</h2>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <div
+              className={`rounded-lg border px-3 py-2 text-sm ${
+                jobHealth.scheduleMissing > 0
+                  ? 'border-amber-200 bg-amber-50 text-amber-900'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+              }`}
+            >
+              Schedule configured for {jobHealth.scheduleConfigured}/{jobHealth.total} jobs.
+              {jobHealth.scheduleMissing > 0 && ` ${jobHealth.scheduleMissing} missing.`}
+            </div>
+            <div
+              className={`rounded-lg border px-3 py-2 text-sm ${
+                jobHealth.expired > 0
+                  ? 'border-rose-200 bg-rose-50 text-rose-900'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+              }`}
+            >
+              {jobHealth.expired > 0
+                ? `${jobHealth.expired} job(s) have passed deadline and should be reviewed.`
+                : 'No expired jobs pending review.'}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="toolbar-shell">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

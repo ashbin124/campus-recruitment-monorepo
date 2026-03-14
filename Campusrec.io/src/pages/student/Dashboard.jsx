@@ -160,12 +160,12 @@ export default function StudentDashboard() {
         </button>
         <button
           type="button"
-          onClick={() => navigate('/student/jobs')}
+          onClick={() => navigate('/student/applications')}
           className="surface-panel p-5 text-left"
         >
           <p className="metric-label">Step 3</p>
           <h3 className="mt-2 text-lg font-semibold text-slate-900">Apply And Track</h3>
-          <p className="mt-1 text-sm text-slate-600">Submit and monitor status updates.</p>
+          <p className="mt-1 text-sm text-slate-600">View status, interview slot, and queue.</p>
         </button>
       </section>
 
@@ -181,6 +181,13 @@ export default function StudentDashboard() {
             <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-800">
               {unreadCount} unread
             </span>
+            <button
+              type="button"
+              onClick={() => navigate('/student/applications')}
+              className="btn-soft px-3 py-2 text-xs"
+            >
+              Open Application Center
+            </button>
             <button
               type="button"
               onClick={markAllNotificationsRead}

@@ -257,17 +257,56 @@ router.get('/jobs', authenticate, authorize('ADMIN'), async (req, res) => {
       },
     });
 
+    const nowTs = Date.now();
+
+    const resolveLifecycleStatus = (job) => {
+      if (job?.isClosed) {
+        return job?.autoFinalizedAt ? 'AUTO_CLOSED' : 'CLOSED';
+      }
+
+      const deadlineTs = job?.applicationDeadline
+        ? new Date(job.applicationDeadline).getTime()
+        : null;
+      if (Number.isFinite(deadlineTs) && deadlineTs <= nowTs) return 'EXPIRED';
+      return 'OPEN';
+    };
+
+    const hasInterviewSchedule = (job) => {
+      const interviewDates = Array.isArray(job?.interviewDates) ? job.interviewDates : [];
+      const interviewStartTime = String(job?.interviewStartTime || '').trim();
+      const interviewCandidatesPerDay = Number.parseInt(
+        String(job?.interviewCandidatesPerDay || ''),
+        10
+      );
+
+      return Boolean(
+        interviewDates.length > 0 &&
+        /^([01]\d|2[0-3]):([0-5]\d)$/.test(interviewStartTime) &&
+        Number.isInteger(interviewCandidatesPerDay) &&
+        interviewCandidatesPerDay > 0
+      );
+    };
+
     // Format the response with null checks
     const formattedJobs = jobs.map((job) => {
       const company = job.company || {};
       const companyUser = company.user || {};
+      const lifecycleStatus = resolveLifecycleStatus(job);
 
       return {
         id: job.id,
         title: job.title || 'Untitled Job',
         type: job.type,
-        status: 'ACTIVE', // Default status since it's not in the schema
+        status: lifecycleStatus,
         createdAt: job.createdAt,
+        applicationDeadline: job.applicationDeadline,
+        isClosed: Boolean(job.isClosed),
+        closedAt: job.closedAt,
+        autoFinalizedAt: job.autoFinalizedAt,
+        scheduleConfigured: hasInterviewSchedule(job),
+        interviewDates: Array.isArray(job.interviewDates) ? job.interviewDates : [],
+        interviewStartTime: job.interviewStartTime || null,
+        interviewCandidatesPerDay: job.interviewCandidatesPerDay || null,
         company: {
           id: company.id || 'unknown',
           name: company.name || companyUser.name || 'Unknown Company',

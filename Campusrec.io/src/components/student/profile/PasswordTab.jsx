@@ -9,7 +9,8 @@ export default function PasswordTab({
 }) {
   return (
     <form onSubmit={onSubmit} className="space-y-5 p-6 md:max-w-xl">
-      <h2 className="text-lg font-semibold text-gray-900">Update Password</h2>
+      <h2 className="text-main text-lg font-semibold">Update Password</h2>
+      <p className="text-soft text-sm">Use a strong password with letters, numbers, and symbols.</p>
 
       <LabeledInput label="Current Password">
         <input

@@ -135,7 +135,7 @@ export default function Auth({ mode: initialMode = 'login' }) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="section-kicker">Access</p>
-                <h2 className="mt-1 text-2xl font-semibold text-gray-900">
+                <h2 className="text-main mt-1 text-2xl font-semibold">
                   {isLogin ? 'Sign In' : 'Create Account'}
                 </h2>
               </div>
@@ -167,7 +167,7 @@ export default function Auth({ mode: initialMode = 'login' }) {
                 <>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="space-y-1">
-                      <span className="text-sm font-medium text-gray-700">Full Name</span>
+                      <span className="field-label">Full Name</span>
                       <input
                         className="input-field"
                         placeholder="Enter full name"
@@ -177,7 +177,7 @@ export default function Auth({ mode: initialMode = 'login' }) {
                       />
                     </label>
                     <label className="space-y-1">
-                      <span className="text-sm font-medium text-gray-700">Account Type</span>
+                      <span className="field-label">Account Type</span>
                       <select
                         className="input-field"
                         value={registerRole}
@@ -191,7 +191,7 @@ export default function Auth({ mode: initialMode = 'login' }) {
 
                   {registerRole === 'COMPANY' && (
                     <label className="space-y-1">
-                      <span className="text-sm font-medium text-gray-700">Company Name</span>
+                      <span className="field-label">Company Name</span>
                       <input
                         className="input-field"
                         placeholder="Enter company name"
@@ -205,7 +205,7 @@ export default function Auth({ mode: initialMode = 'login' }) {
               )}
 
               <label className="space-y-1">
-                <span className="text-sm font-medium text-gray-700">Email Address</span>
+                <span className="field-label">Email Address</span>
                 <input
                   className="input-field"
                   placeholder="you@example.com"
@@ -217,7 +217,7 @@ export default function Auth({ mode: initialMode = 'login' }) {
               </label>
 
               <label className="space-y-1">
-                <span className="text-sm font-medium text-gray-700">Password</span>
+                <span className="field-label">Password</span>
                 <div className="relative">
                   <input
                     className="input-field pr-10"
@@ -230,7 +230,7 @@ export default function Auth({ mode: initialMode = 'login' }) {
                   <button
                     type="button"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-gray-700"
+                    className="text-soft absolute inset-y-0 right-2 flex items-center hover:text-slate-900"
                     onClick={() => setShowPassword((prev) => !prev)}
                   >
                     {showPassword ? <FaEyeSlash /> : <FaEye />}
@@ -238,24 +238,20 @@ export default function Auth({ mode: initialMode = 'login' }) {
                 </div>
               </label>
 
-              {error && (
-                <div className="rounded-lg border border-red-200 bg-red-50/90 px-3 py-2 text-sm text-red-700">
-                  {error}
-                </div>
-              )}
+              {error && <div className="inline-alert alert-error px-3 py-2">{error}</div>}
 
               <button type="submit" disabled={loading} className="btn-brand w-full py-2.5">
                 {loading ? 'Please wait...' : isLogin ? 'Login' : 'Create Account'}
               </button>
             </form>
 
-            <p className="mt-4 text-sm text-gray-600">
+            <p className="text-soft mt-4 text-sm">
               {isLogin ? (
                 <>
                   Don&apos;t have an account?{' '}
                   <button
                     type="button"
-                    className="font-medium text-brand-700 hover:underline"
+                    className="app-link font-medium"
                     onClick={() => switchMode('register')}
                   >
                     Register
@@ -266,7 +262,7 @@ export default function Auth({ mode: initialMode = 'login' }) {
                   Already have an account?{' '}
                   <button
                     type="button"
-                    className="font-medium text-brand-700 hover:underline"
+                    className="app-link font-medium"
                     onClick={() => switchMode('login')}
                   >
                     Login

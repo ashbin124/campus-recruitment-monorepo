@@ -1,5 +1,5 @@
 import { BsGithub, BsGlobe, BsLinkedin } from 'react-icons/bs';
-import { FiFileText, FiMapPin, FiPhone } from 'react-icons/fi';
+import { FiAlertTriangle, FiCheckCircle, FiFileText, FiMapPin, FiPhone } from 'react-icons/fi';
 import LabeledInput from './LabeledInput.jsx';
 
 export default function ProfileDetailsTab({
@@ -9,12 +9,19 @@ export default function ProfileDetailsTab({
   onInputChange,
   onFileChange,
   toExternalHref,
+  profileReadiness,
 }) {
+  const disabledInputClass = !isEditing ? 'opacity-80' : '';
+  const completionPercent = Number(profileReadiness?.completionPercent || 0);
+  const missingLabels = Array.isArray(profileReadiness?.missingLabels)
+    ? profileReadiness.missingLabels
+    : [];
+
   return (
     <div className="space-y-6 p-6">
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-          <h2 className="text-base font-semibold text-gray-900">Basic Information</h2>
+        <div className="surface-panel space-y-4 p-4">
+          <h2 className="text-main text-base font-semibold">Basic Information</h2>
 
           <LabeledInput label="Full Name">
             <input
@@ -23,7 +30,7 @@ export default function ProfileDetailsTab({
               value={formData.name}
               onChange={onInputChange}
               disabled={!isEditing}
-              className={`${formInputClass} ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+              className={`${formInputClass} ${disabledInputClass}`}
             />
           </LabeledInput>
 
@@ -32,7 +39,7 @@ export default function ProfileDetailsTab({
               type="email"
               value={formData.email}
               disabled
-              className={`${formInputClass} bg-gray-100 text-gray-600`}
+              className={`${formInputClass} opacity-80`}
             />
           </LabeledInput>
 
@@ -43,7 +50,7 @@ export default function ProfileDetailsTab({
               value={formData.phone}
               onChange={onInputChange}
               disabled={!isEditing}
-              className={`${formInputClass} ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+              className={`${formInputClass} ${disabledInputClass}`}
             />
           </LabeledInput>
 
@@ -54,7 +61,7 @@ export default function ProfileDetailsTab({
               value={formData.location}
               onChange={onInputChange}
               disabled={!isEditing}
-              className={`${formInputClass} ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+              className={`${formInputClass} ${disabledInputClass}`}
             />
           </LabeledInput>
 
@@ -66,13 +73,13 @@ export default function ProfileDetailsTab({
               value={formData.age}
               onChange={onInputChange}
               disabled={!isEditing}
-              className={`${formInputClass} ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+              className={`${formInputClass} ${disabledInputClass}`}
             />
           </LabeledInput>
         </div>
 
-        <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-          <h2 className="text-base font-semibold text-gray-900">Professional Summary</h2>
+        <div className="surface-panel space-y-4 p-4">
+          <h2 className="text-main text-base font-semibold">Professional Summary</h2>
 
           <LabeledInput label="Bio">
             <textarea
@@ -81,7 +88,7 @@ export default function ProfileDetailsTab({
               onChange={onInputChange}
               disabled={!isEditing}
               rows={4}
-              className={`${formInputClass} ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+              className={`${formInputClass} ${disabledInputClass}`}
             />
           </LabeledInput>
 
@@ -92,7 +99,7 @@ export default function ProfileDetailsTab({
               onChange={onInputChange}
               disabled={!isEditing}
               rows={3}
-              className={`${formInputClass} ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+              className={`${formInputClass} ${disabledInputClass}`}
             />
           </LabeledInput>
 
@@ -103,7 +110,7 @@ export default function ProfileDetailsTab({
               value={formData.degree}
               onChange={onInputChange}
               disabled={!isEditing}
-              className={`${formInputClass} ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+              className={`${formInputClass} ${disabledInputClass}`}
             />
           </LabeledInput>
 
@@ -114,7 +121,7 @@ export default function ProfileDetailsTab({
               onChange={onInputChange}
               disabled={!isEditing}
               rows={3}
-              className={`${formInputClass} ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+              className={`${formInputClass} ${disabledInputClass}`}
             />
           </LabeledInput>
 
@@ -126,7 +133,7 @@ export default function ProfileDetailsTab({
               value={formData.experienceYears}
               onChange={onInputChange}
               disabled={!isEditing}
-              className={`${formInputClass} ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+              className={`${formInputClass} ${disabledInputClass}`}
             />
           </LabeledInput>
 
@@ -137,66 +144,66 @@ export default function ProfileDetailsTab({
               onChange={onInputChange}
               disabled={!isEditing}
               rows={3}
-              className={`${formInputClass} ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+              className={`${formInputClass} ${disabledInputClass}`}
             />
           </LabeledInput>
         </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-          <h2 className="text-base font-semibold text-gray-900">Social Links</h2>
+        <div className="surface-panel space-y-4 p-4">
+          <h2 className="text-main text-base font-semibold">Social Links</h2>
 
           <LabeledInput label="LinkedIn URL">
             <div className="relative">
-              <BsLinkedin className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+              <BsLinkedin className="text-soft pointer-events-none absolute left-3 top-3.5 h-4 w-4" />
               <input
                 type="text"
                 name="linkedin"
                 value={formData.linkedin}
                 onChange={onInputChange}
                 disabled={!isEditing}
-                className={`${formInputClass} pl-9 ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+                className={`${formInputClass} pl-9 ${disabledInputClass}`}
               />
             </div>
           </LabeledInput>
 
           <LabeledInput label="GitHub URL">
             <div className="relative">
-              <BsGithub className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+              <BsGithub className="text-soft pointer-events-none absolute left-3 top-3.5 h-4 w-4" />
               <input
                 type="text"
                 name="github"
                 value={formData.github}
                 onChange={onInputChange}
                 disabled={!isEditing}
-                className={`${formInputClass} pl-9 ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+                className={`${formInputClass} pl-9 ${disabledInputClass}`}
               />
             </div>
           </LabeledInput>
 
           <LabeledInput label="Website URL">
             <div className="relative">
-              <BsGlobe className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+              <BsGlobe className="text-soft pointer-events-none absolute left-3 top-3.5 h-4 w-4" />
               <input
                 type="text"
                 name="website"
                 value={formData.website}
                 onChange={onInputChange}
                 disabled={!isEditing}
-                className={`${formInputClass} pl-9 ${!isEditing ? 'bg-gray-100 text-gray-600' : ''}`}
+                className={`${formInputClass} pl-9 ${disabledInputClass}`}
               />
             </div>
           </LabeledInput>
 
           {!isEditing && (
-            <div className="space-y-2 border-t border-gray-200 pt-3 text-sm">
+            <div className="space-y-2 border-t border-slate-200/80 pt-3 text-sm">
               {formData.linkedin && (
                 <a
                   href={toExternalHref(formData.linkedin)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block text-brand-700 hover:underline"
+                  className="app-link block"
                 >
                   Open LinkedIn
                 </a>
@@ -206,7 +213,7 @@ export default function ProfileDetailsTab({
                   href={toExternalHref(formData.github)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block text-brand-700 hover:underline"
+                  className="app-link block"
                 >
                   Open GitHub
                 </a>
@@ -216,7 +223,7 @@ export default function ProfileDetailsTab({
                   href={toExternalHref(formData.website)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block text-brand-700 hover:underline"
+                  className="app-link block"
                 >
                   Open Website
                 </a>
@@ -225,12 +232,12 @@ export default function ProfileDetailsTab({
           )}
         </div>
 
-        <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-          <h2 className="text-base font-semibold text-gray-900">Documents</h2>
+        <div className="surface-panel space-y-4 p-4">
+          <h2 className="text-main text-base font-semibold">Documents</h2>
 
-          <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm">
-            <p className="font-medium text-gray-800">Current Resume</p>
-            <p className="mt-1 text-gray-600">
+          <div className="panel-muted p-3 text-sm">
+            <p className="text-main font-medium">Current Resume</p>
+            <p className="text-soft mt-1">
               {formData.resumeUrl ? 'Resume uploaded' : 'No resume uploaded yet'}
             </p>
             {formData.resumeUrl && (
@@ -238,7 +245,7 @@ export default function ProfileDetailsTab({
                 href={formData.resumeUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1 text-brand-700 hover:underline"
+                className="app-link mt-2 inline-flex items-center gap-1"
               >
                 <FiFileText className="h-4 w-4" /> View resume
               </a>
@@ -252,6 +259,7 @@ export default function ProfileDetailsTab({
                   type="file"
                   name="profileImage"
                   onChange={onFileChange}
+                  accept="image/*"
                   className={formInputClass}
                 />
               </LabeledInput>
@@ -261,21 +269,68 @@ export default function ProfileDetailsTab({
                   type="file"
                   name="resume"
                   onChange={onFileChange}
+                  accept=".pdf,.doc,.docx"
                   className={formInputClass}
                 />
               </LabeledInput>
             </>
           )}
 
-          <div className="space-y-2 border-t border-gray-200 pt-3 text-sm text-gray-600">
+          <div className="space-y-2 border-t border-slate-200/80 pt-3 text-sm">
             <div className="flex items-start gap-2">
-              <FiPhone className="mt-0.5 h-4 w-4 text-gray-400" />
-              <span>{formData.phone || 'Phone not set'}</span>
+              <FiPhone className="text-soft mt-0.5 h-4 w-4" />
+              <span className="text-soft">{formData.phone || 'Phone not set'}</span>
             </div>
             <div className="flex items-start gap-2">
-              <FiMapPin className="mt-0.5 h-4 w-4 text-gray-400" />
-              <span>{formData.location || 'Location not set'}</span>
+              <FiMapPin className="text-soft mt-0.5 h-4 w-4" />
+              <span className="text-soft">{formData.location || 'Location not set'}</span>
             </div>
+          </div>
+
+          <div
+            className={`rounded-lg border px-3 py-3 text-sm ${
+              missingLabels.length === 0
+                ? 'border-emerald-200 bg-emerald-50/70'
+                : 'border-amber-200 bg-amber-50/70'
+            }`}
+          >
+            <p
+              className={`font-semibold ${
+                missingLabels.length === 0 ? 'text-emerald-900' : 'text-amber-900'
+              }`}
+            >
+              Application Readiness {completionPercent}%
+            </p>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/70">
+              <div
+                className={`h-full rounded-full ${
+                  completionPercent >= 85
+                    ? 'bg-emerald-500'
+                    : completionPercent >= 60
+                      ? 'bg-brand-500'
+                      : 'bg-amber-500'
+                }`}
+                style={{ width: `${completionPercent}%` }}
+              />
+            </div>
+            {missingLabels.length === 0 ? (
+              <p className="mt-2 inline-flex items-center gap-1 text-xs text-emerald-800">
+                <FiCheckCircle className="h-3.5 w-3.5" />
+                Profile is ready for job applications.
+              </p>
+            ) : (
+              <>
+                <p className="mt-2 inline-flex items-center gap-1 text-xs text-amber-800">
+                  <FiAlertTriangle className="h-3.5 w-3.5" />
+                  Add missing details to improve matching.
+                </p>
+                <ul className="mt-2 space-y-1 text-xs text-amber-900">
+                  {missingLabels.map((label) => (
+                    <li key={label}>Missing: {label}</li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
         </div>
       </div>

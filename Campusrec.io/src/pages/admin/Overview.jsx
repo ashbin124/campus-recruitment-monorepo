@@ -26,6 +26,17 @@ function csvCell(value) {
   return `"${String(value ?? '').replace(/"/g, '""')}"`;
 }
 
+function lifecycleLabel(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toUpperCase();
+  if (normalized === 'AUTO_CLOSED') return 'Auto Closed';
+  if (normalized === 'OPEN') return 'Open';
+  if (normalized === 'EXPIRED') return 'Expired';
+  if (normalized === 'CLOSED') return 'Closed';
+  return normalized || '-';
+}
+
 function downloadCsv(filename, headers, rows) {
   const csv = [headers.join(','), ...rows.map((row) => row.map(csvCell).join(','))].join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -75,6 +86,8 @@ export default function Overview() {
   const [jobSearch, setJobSearch] = useState('');
   const [jobTypeFilter, setJobTypeFilter] = useState('ALL');
   const [jobApplicantsFilter, setJobApplicantsFilter] = useState('ALL');
+  const [jobLifecycleFilter, setJobLifecycleFilter] = useState('ALL');
+  const [jobScheduleFilter, setJobScheduleFilter] = useState('ALL');
 
   const [auditSearch, setAuditSearch] = useState('');
   const [auditActionFilter, setAuditActionFilter] = useState('ALL');
@@ -165,13 +178,28 @@ export default function Overview() {
           .toLowerCase()
           .includes(search);
       const matchesType = jobTypeFilter === 'ALL' || String(job.type || '') === jobTypeFilter;
+      const matchesLifecycle =
+        jobLifecycleFilter === 'ALL' ||
+        String(job.status || '').toUpperCase() === jobLifecycleFilter;
+      const matchesSchedule =
+        jobScheduleFilter === 'ALL' ||
+        (jobScheduleFilter === 'READY' ? job.scheduleConfigured : !job.scheduleConfigured);
       const applicationCount = Number(job.applicationCount || 0);
       const matchesApplicants =
         jobApplicantsFilter === 'ALL' ||
         (jobApplicantsFilter === 'WITH_APPLICANTS' ? applicationCount > 0 : applicationCount === 0);
-      return matchesSearch && matchesType && matchesApplicants;
+      return (
+        matchesSearch && matchesType && matchesApplicants && matchesLifecycle && matchesSchedule
+      );
     });
-  }, [recentJobs, jobSearch, jobTypeFilter, jobApplicantsFilter]);
+  }, [
+    recentJobs,
+    jobSearch,
+    jobTypeFilter,
+    jobApplicantsFilter,
+    jobLifecycleFilter,
+    jobScheduleFilter,
+  ]);
 
   const filteredAuditLogs = useMemo(() => {
     const search = auditSearch.trim().toLowerCase();
@@ -332,13 +360,26 @@ export default function Overview() {
       job.company?.name || '',
       job.company?.email || '',
       job.type,
-      job.status,
+      lifecycleLabel(job.status),
+      job.applicationDeadline || '',
+      job.scheduleConfigured ? 'YES' : 'NO',
       job.applicationCount,
       job.createdAt,
     ]);
     downloadCsv(
       'admin-jobs.csv',
-      ['ID', 'Title', 'Company', 'Company Email', 'Type', 'Status', 'Applications', 'Posted'],
+      [
+        'ID',
+        'Title',
+        'Company',
+        'Company Email',
+        'Type',
+        'Lifecycle',
+        'Deadline',
+        'Schedule Configured',
+        'Applications',
+        'Posted',
+      ],
       rows
     );
   };
@@ -463,7 +504,23 @@ export default function Overview() {
       title: 'Type',
       render: (value) => <span className="capitalize">{value?.toLowerCase() || '-'}</span>,
     },
-    { key: 'status', title: 'Status', type: 'status' },
+    { key: 'status', title: 'Lifecycle', type: 'status' },
+    { key: 'applicationDeadline', title: 'Deadline', type: 'date' },
+    {
+      key: 'scheduleConfigured',
+      title: 'Schedule',
+      render: (value) => (
+        <span
+          className={`status-pill ${
+            value
+              ? 'border-emerald-200 bg-emerald-100 text-emerald-800'
+              : 'border-rose-200 bg-rose-100 text-rose-800'
+          }`}
+        >
+          {value ? 'Configured' : 'Missing'}
+        </span>
+      ),
+    },
     { key: 'applicationCount', title: 'Applications' },
     { key: 'createdAt', title: 'Posted', type: 'date' },
     {
@@ -542,8 +599,17 @@ export default function Overview() {
   };
 
   const selectedDeletableCount = selectedUserIds.filter((id) => id !== currentUser?.id).length;
-  const activeUsersCount = recentUsers.filter((user) => Boolean(user.isActive)).length;
+  const activeUsersCount = recentUsers.filter((user) => user.isActive).length;
   const suspendedUsersCount = recentUsers.filter((user) => !user.isActive).length;
+  const openJobsCount = recentJobs.filter((job) => String(job.status || '') === 'OPEN').length;
+  const expiredJobsCount = recentJobs.filter(
+    (job) => String(job.status || '') === 'EXPIRED'
+  ).length;
+  const closedJobsCount = recentJobs.filter((job) => String(job.status || '') === 'CLOSED').length;
+  const autoClosedJobsCount = recentJobs.filter(
+    (job) => String(job.status || '') === 'AUTO_CLOSED'
+  ).length;
+  const scheduleMissingJobsCount = recentJobs.filter((job) => !job.scheduleConfigured).length;
   const jobsWithApplicationsCount = recentJobs.filter(
     (job) => Number(job.applicationCount) > 0
   ).length;
@@ -583,6 +649,11 @@ export default function Overview() {
           activeUsersCount={activeUsersCount}
           suspendedUsersCount={suspendedUsersCount}
           jobsWithApplicationsCount={jobsWithApplicationsCount}
+          openJobsCount={openJobsCount}
+          expiredJobsCount={expiredJobsCount}
+          closedJobsCount={closedJobsCount}
+          autoClosedJobsCount={autoClosedJobsCount}
+          scheduleMissingJobsCount={scheduleMissingJobsCount}
           latestAuditTime={latestAuditTime}
           onTabChange={setActiveTab}
         />
@@ -618,13 +689,19 @@ export default function Overview() {
           jobSearch={jobSearch}
           jobTypeFilter={jobTypeFilter}
           jobApplicantsFilter={jobApplicantsFilter}
+          jobLifecycleFilter={jobLifecycleFilter}
+          jobScheduleFilter={jobScheduleFilter}
           onJobSearchChange={setJobSearch}
           onJobTypeFilterChange={setJobTypeFilter}
           onJobApplicantsFilterChange={setJobApplicantsFilter}
+          onJobLifecycleFilterChange={setJobLifecycleFilter}
+          onJobScheduleFilterChange={setJobScheduleFilter}
           onClearFilters={() => {
             setJobSearch('');
             setJobTypeFilter('ALL');
             setJobApplicantsFilter('ALL');
+            setJobLifecycleFilter('ALL');
+            setJobScheduleFilter('ALL');
           }}
           onExportJobs={handleExportJobs}
           filteredJobs={filteredJobs}

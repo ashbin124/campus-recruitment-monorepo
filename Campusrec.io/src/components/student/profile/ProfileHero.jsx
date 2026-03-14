@@ -1,4 +1,4 @@
-import { FiSave } from 'react-icons/fi';
+import { FiAlertTriangle, FiCheckCircle, FiFileText, FiSave } from 'react-icons/fi';
 
 export default function ProfileHero({
   activeTab,
@@ -8,10 +8,21 @@ export default function ProfileHero({
   displayName,
   displayEmail,
   initials,
+  completionPercent = 0,
+  hasResume = false,
+  missingCount = 0,
   onStartEdit,
   onCancelEdit,
   onSaveProfile,
 }) {
+  const profileReady = completionPercent >= 85 && missingCount === 0;
+  const profileNearReady = !profileReady && completionPercent >= 60;
+  const progressTone = profileReady
+    ? 'bg-emerald-400'
+    : profileNearReady
+      ? 'bg-amber-300'
+      : 'bg-rose-300';
+
   return (
     <section className="hero-shell">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -31,6 +42,44 @@ export default function ProfileHero({
             <p className="text-xs uppercase tracking-wide text-white/80">Student Account</p>
             <h1 className="mt-1 text-2xl font-semibold">{displayName || 'Student Profile'}</h1>
             <p className="text-sm text-white/80">{displayEmail || ''}</p>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <span className="inline-flex items-center rounded-full border border-white/30 bg-white/15 px-2.5 py-1 font-semibold">
+                {completionPercent}% complete
+              </span>
+              <span
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-semibold ${
+                  hasResume
+                    ? 'border-emerald-200/70 bg-emerald-400/20 text-emerald-50'
+                    : 'border-amber-200/70 bg-amber-400/25 text-amber-50'
+                }`}
+              >
+                {hasResume ? (
+                  <FiFileText className="h-3.5 w-3.5" />
+                ) : (
+                  <FiAlertTriangle className="h-3.5 w-3.5" />
+                )}
+                {hasResume ? 'Resume uploaded' : 'Resume missing'}
+              </span>
+              {missingCount > 0 && (
+                <span className="inline-flex items-center rounded-full border border-rose-200/60 bg-rose-400/20 px-2.5 py-1 font-semibold text-rose-50">
+                  {missingCount} fields missing
+                </span>
+              )}
+              {profileReady && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/70 bg-emerald-400/20 px-2.5 py-1 font-semibold text-emerald-50">
+                  <FiCheckCircle className="h-3.5 w-3.5" />
+                  Ready to apply
+                </span>
+              )}
+            </div>
+
+            <div className="mt-3 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-white/20">
+              <div
+                className={`h-full rounded-full transition-all ${progressTone}`}
+                style={{ width: `${completionPercent}%` }}
+              />
+            </div>
           </div>
         </div>
 

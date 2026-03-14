@@ -5,6 +5,11 @@ export default function DashboardTab({
   activeUsersCount,
   suspendedUsersCount,
   jobsWithApplicationsCount,
+  openJobsCount,
+  expiredJobsCount,
+  closedJobsCount,
+  autoClosedJobsCount,
+  scheduleMissingJobsCount,
   latestAuditTime,
   onTabChange,
 }) {
@@ -42,6 +47,36 @@ export default function DashboardTab({
           <p className="mt-2 break-words text-sm font-semibold text-slate-900">{latestAuditTime}</p>
           <p className="metric-note">Most recent activity record</p>
         </div>
+      </div>
+
+      <div className="surface-card p-5">
+        <p className="section-kicker">Job Lifecycle Health</p>
+        <h3 className="section-title mt-2 text-xl">Operations Snapshot</h3>
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
+          <div className="metric-tile">
+            <p className="metric-label">Open</p>
+            <p className="metric-value">{openJobsCount}</p>
+          </div>
+          <div className="metric-tile">
+            <p className="metric-label">Expired</p>
+            <p className="metric-value">{expiredJobsCount}</p>
+          </div>
+          <div className="metric-tile">
+            <p className="metric-label">Closed</p>
+            <p className="metric-value">{closedJobsCount}</p>
+          </div>
+          <div className="metric-tile">
+            <p className="metric-label">Auto Closed</p>
+            <p className="metric-value">{autoClosedJobsCount}</p>
+          </div>
+          <div className="metric-tile">
+            <p className="metric-label">Schedule Missing</p>
+            <p className="metric-value">{scheduleMissingJobsCount}</p>
+          </div>
+        </div>
+        <p className="metric-note mt-3">
+          Jobs with missing schedules can block automatic interview flow.
+        </p>
       </div>
 
       <div className="section-shell">
