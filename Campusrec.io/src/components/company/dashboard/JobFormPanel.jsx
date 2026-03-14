@@ -155,7 +155,10 @@ export default function JobFormPanel({
   onCancel,
 }) {
   const descriptionCount = String(description || '').trim().length;
-  const exampleToneClass = 'placeholder:text-slate-400/70';
+  const exampleToneClass = 'placeholder:text-slate-400/90';
+  const fieldClass = `input-field ${exampleToneClass} border-slate-300 bg-white text-slate-900 shadow-sm`;
+  const textareaClass = `textarea-field ${exampleToneClass} border-slate-300 bg-white text-slate-900 shadow-sm`;
+  const sectionLabelClass = 'text-sm font-semibold text-slate-800';
   const [selectedTemplateId, setSelectedTemplateId] = useState('backend_dev');
   const [selectedCategory, setSelectedCategory] = useState('backend');
 
@@ -187,7 +190,7 @@ export default function JobFormPanel({
   }
 
   return (
-    <div className="section-shell">
+    <div className="section-shell border-slate-300 bg-gradient-to-br from-white via-slate-50 to-blue-50/35 shadow-lg">
       <div className="section-head mb-4">
         <div>
           <p className="section-kicker">Publishing</p>
@@ -203,44 +206,44 @@ export default function JobFormPanel({
 
       <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-gray-700">Job Title</span>
+          <span className={sectionLabelClass}>Job Title</span>
           <input
             value={title}
             onChange={(event) => onTitleChange(event.target.value)}
-            className={`input-field ${exampleToneClass}`}
+            className={fieldClass}
             placeholder="eg: Senior Frontend Engineer"
             required
           />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-gray-700">Location</span>
+          <span className={sectionLabelClass}>Location</span>
           <input
             value={location}
             onChange={(event) => onLocationChange(event.target.value)}
-            className={`input-field ${exampleToneClass}`}
+            className={fieldClass}
             placeholder="eg: Bengaluru / Remote"
           />
         </label>
 
         <label className="flex flex-col gap-1 sm:col-span-2">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-medium text-gray-700">Role Description</span>
-            <span className="text-xs text-gray-500">{descriptionCount} chars</span>
+            <span className={sectionLabelClass}>Role Description</span>
+            <span className="text-xs font-medium text-slate-600">{descriptionCount} chars</span>
           </div>
           <textarea
             value={description}
             onChange={(event) => onDescriptionChange(event.target.value)}
-            className={`textarea-field ${exampleToneClass}`}
+            className={textareaClass}
             rows="5"
             placeholder="eg: Responsibilities, required skills, and expectations"
             required
           />
         </label>
 
-        <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-          <p className="text-sm font-semibold text-slate-800">Advanced Skill Builder</p>
-          <p className="mt-1 text-xs text-slate-500">
+        <div className="sm:col-span-2 rounded-xl border border-slate-300 bg-gradient-to-br from-slate-100 via-white to-sky-50/40 p-3 shadow-sm">
+          <p className="text-sm font-semibold text-slate-900">Advanced Skill Builder</p>
+          <p className="mt-1 text-xs text-slate-600">
             Choose a role template and quickly add skills by category.
           </p>
 
@@ -248,7 +251,7 @@ export default function JobFormPanel({
             <select
               value={selectedTemplateId}
               onChange={(event) => setSelectedTemplateId(event.target.value)}
-              className="select-field"
+              className="select-field border-slate-300 bg-white text-slate-900 shadow-sm"
             >
               {ROLE_TEMPLATES.map((template) => (
                 <option key={template.id} value={template.id}>
@@ -256,15 +259,23 @@ export default function JobFormPanel({
                 </option>
               ))}
             </select>
-            <button type="button" className="btn-soft" onClick={() => applyTemplate('merge')}>
+            <button
+              type="button"
+              className="btn-soft border-slate-300 bg-white text-slate-800 shadow-sm hover:bg-slate-100"
+              onClick={() => applyTemplate('merge')}
+            >
               Merge Template
             </button>
-            <button type="button" className="btn-soft" onClick={() => applyTemplate('replace')}>
+            <button
+              type="button"
+              className="btn-soft border-slate-300 bg-white text-slate-800 shadow-sm hover:bg-slate-100"
+              onClick={() => applyTemplate('replace')}
+            >
               Replace Skills
             </button>
             <button
               type="button"
-              className="btn-soft"
+              className="btn-soft border-slate-300 bg-white text-slate-800 shadow-sm hover:bg-slate-100"
               onClick={() => {
                 onMandatorySkillsChange('');
                 onRequiredSkillsChange('');
@@ -282,8 +293,8 @@ export default function JobFormPanel({
                 onClick={() => setSelectedCategory(categoryKey)}
                 className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
                   selectedCategory === categoryKey
-                    ? 'border-brand-500 bg-brand-50 text-brand-700'
-                    : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+                    ? 'border-brand-500 bg-brand-100 text-brand-800 shadow-sm'
+                    : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
                 }`}
               >
                 {CATEGORY_LABELS[categoryKey]}
@@ -295,9 +306,9 @@ export default function JobFormPanel({
             {categorySkills.map((skill) => (
               <div
                 key={`${selectedCategory}-${skill}`}
-                className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2"
+                className="flex items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-sm"
               >
-                <span className="text-sm text-slate-700">{skill}</span>
+                <span className="text-sm font-medium text-slate-800">{skill}</span>
                 <div className="flex gap-1">
                   <button
                     type="button"
@@ -320,85 +331,85 @@ export default function JobFormPanel({
         </div>
 
         <label className="flex flex-col gap-1 sm:col-span-2">
-          <span className="text-sm font-medium text-gray-700">
+          <span className={sectionLabelClass}>
             Compulsory Skills (all must match, use / for alternatives)
           </span>
           <textarea
             value={mandatorySkills}
             onChange={(event) => onMandatorySkillsChange(event.target.value)}
-            className={`textarea-field ${exampleToneClass}`}
+            className={textareaClass}
             rows="2"
             placeholder="eg: Git, Communication, Node.js/Express"
           />
         </label>
 
         <label className="flex flex-col gap-1 sm:col-span-2">
-          <span className="text-sm font-medium text-gray-700">
+          <span className={sectionLabelClass}>
             Flexible Skill Pool (screening, use / for alternatives)
           </span>
           <textarea
             value={requiredSkills}
             onChange={(event) => onRequiredSkillsChange(event.target.value)}
-            className={`textarea-field ${exampleToneClass}`}
+            className={textareaClass}
             rows="2"
             placeholder="eg: django/express/node js, mysql/postgresql"
           />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-gray-700">Required Degree (optional)</span>
+          <span className={sectionLabelClass}>Required Degree (optional)</span>
           <input
             value={requiredDegree}
             onChange={(event) => onRequiredDegreeChange(event.target.value)}
-            className={`input-field ${exampleToneClass}`}
+            className={fieldClass}
             placeholder="eg: B.Tech Computer Science"
           />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-gray-700">Min Experience (years)</span>
+          <span className={sectionLabelClass}>Min Experience (years)</span>
           <input
             type="number"
             min="0"
             value={minExperienceYears}
             onChange={(event) => onMinExperienceYearsChange(event.target.value)}
-            className={`input-field ${exampleToneClass}`}
+            className={fieldClass}
             placeholder="eg: 2"
           />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-gray-700">Min Age (optional)</span>
+          <span className={sectionLabelClass}>Min Age (optional)</span>
           <input
             type="number"
             min="1"
             value={minAge}
             onChange={(event) => onMinAgeChange(event.target.value)}
-            className={`input-field ${exampleToneClass}`}
+            className={fieldClass}
             placeholder="eg: 21"
           />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-gray-700">Max Age (optional)</span>
+          <span className={sectionLabelClass}>Max Age (optional)</span>
           <input
             type="number"
             min="1"
             value={maxAge}
             onChange={(event) => onMaxAgeChange(event.target.value)}
-            className={`input-field ${exampleToneClass}`}
+            className={fieldClass}
             placeholder="eg: 30"
           />
         </label>
 
         <label className="flex flex-col gap-1 sm:col-span-2">
-          <span className="text-sm font-medium text-gray-700">
+          <span className={sectionLabelClass}>
             Interview Dates (required, comma separated YYYY-MM-DD)
           </span>
           <textarea
             value={interviewDates}
             onChange={(event) => onInterviewDatesChange(event.target.value)}
-            className={`textarea-field ${exampleToneClass}`}
+            className={textareaClass}
             rows="2"
             placeholder="eg: 2026-03-20, 2026-03-27, 2026-04-03"
             required
@@ -406,25 +417,25 @@ export default function JobFormPanel({
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-gray-700">Interview Start Time (required)</span>
+          <span className={sectionLabelClass}>Interview Start Time (required)</span>
           <input
             type="time"
             value={interviewStartTime}
             onChange={(event) => onInterviewStartTimeChange(event.target.value)}
-            className={`input-field ${exampleToneClass}`}
+            className={fieldClass}
             required
           />
-          <span className="text-xs text-slate-400">eg: 09:30</span>
+          <span className="text-xs text-slate-500">eg: 09:30</span>
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-gray-700">Candidates Per Day (required)</span>
+          <span className={sectionLabelClass}>Candidates Per Day (required)</span>
           <input
             type="number"
             min="1"
             value={interviewCandidatesPerDay}
             onChange={(event) => onInterviewCandidatesPerDayChange(event.target.value)}
-            className={`input-field ${exampleToneClass}`}
+            className={fieldClass}
             placeholder="eg: 10"
             required
           />
