@@ -85,14 +85,14 @@ export default function JobFormPanel({
 
         <label className="flex flex-col gap-1 sm:col-span-2">
           <span className="text-sm font-medium text-gray-700">
-            Required Skills (comma separated)
+            Required Skills (comma separated, use / for alternatives)
           </span>
           <textarea
             value={requiredSkills}
             onChange={(event) => onRequiredSkillsChange(event.target.value)}
             className={`textarea-field ${exampleToneClass}`}
             rows="2"
-            placeholder="eg: React, Node.js, PostgreSQL"
+            placeholder="eg: django/express/node js, mysql/postgresql"
           />
         </label>
 

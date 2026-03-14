@@ -6,12 +6,162 @@ function normalizeLower(value) {
   return normalizeString(value).toLowerCase();
 }
 
-function normalizeSkills(values) {
+function toSkillKey(value) {
+  return normalizeLower(value).replace(/[^a-z0-9]+/g, '');
+}
+
+function dedupeSkills(values) {
   if (!Array.isArray(values)) return [];
-  return values
-    .map((item) => normalizeLower(item))
-    .filter(Boolean)
-    .filter((item, index, arr) => arr.indexOf(item) === index);
+
+  const seen = new Set();
+  const output = [];
+  for (const item of values) {
+    const label = normalizeString(item);
+    const key = toSkillKey(label);
+    if (!label || !key || seen.has(key)) continue;
+    seen.add(key);
+    output.push(label);
+  }
+  return output;
+}
+
+function normalizeProfileSkillKeys(values) {
+  const keys = new Set();
+  if (!Array.isArray(values)) return keys;
+
+  for (const value of values) {
+    const key = toSkillKey(value);
+    if (key) keys.add(key);
+  }
+  return keys;
+}
+
+const BACKEND_FRAMEWORK_KEYS = new Set([
+  'django',
+  'express',
+  'nodejs',
+  'nestjs',
+  'flask',
+  'fastapi',
+  'spring',
+  'springboot',
+  'laravel',
+  'rubyonrails',
+  'rails',
+  'aspnet',
+  'adonisjs',
+  'koa',
+  'hapi',
+]);
+
+const DATABASE_KEYS = new Set([
+  'mysql',
+  'postgresql',
+  'postgres',
+  'mariadb',
+  'mongodb',
+  'sqlite',
+  'redis',
+  'oracle',
+  'mssql',
+  'sqlserver',
+  'cassandra',
+  'dynamodb',
+  'firebase',
+]);
+
+function detectSkillFamily(skill) {
+  const key = toSkillKey(skill);
+  if (!key) return null;
+  if (BACKEND_FRAMEWORK_KEYS.has(key)) return 'backend_framework';
+  if (DATABASE_KEYS.has(key)) return 'database';
+  return null;
+}
+
+function parseSkillAlternatives(value) {
+  const source = normalizeString(value);
+  if (!source) return [];
+  return dedupeSkills(source.split(/\s*(?:\/|\||\bor\b)\s*/i));
+}
+
+function buildRequiredSkillGroups(rawSkills) {
+  const parsedEntries = [];
+  const familyCounts = new Map();
+
+  for (const rawSkill of Array.isArray(rawSkills) ? rawSkills : []) {
+    const alternatives = parseSkillAlternatives(rawSkill);
+    if (!alternatives.length) continue;
+
+    if (alternatives.length > 1) {
+      parsedEntries.push({ type: 'group', options: alternatives });
+      continue;
+    }
+
+    const singleSkill = alternatives[0];
+    const family = detectSkillFamily(singleSkill);
+    parsedEntries.push({ type: 'single', skill: singleSkill, family });
+    if (family) {
+      familyCounts.set(family, (familyCounts.get(family) || 0) + 1);
+    }
+  }
+
+  const groupedFamilySkills = new Map();
+  for (const entry of parsedEntries) {
+    if (entry.type !== 'single') continue;
+    if (!entry.family) continue;
+    if ((familyCounts.get(entry.family) || 0) <= 1) continue;
+
+    if (!groupedFamilySkills.has(entry.family)) {
+      groupedFamilySkills.set(entry.family, []);
+    }
+    groupedFamilySkills.get(entry.family).push(entry.skill);
+  }
+
+  for (const [family, skills] of groupedFamilySkills.entries()) {
+    groupedFamilySkills.set(family, dedupeSkills(skills));
+  }
+
+  const emittedFamilies = new Set();
+  const groups = [];
+
+  for (const entry of parsedEntries) {
+    if (entry.type === 'group') {
+      groups.push({ options: entry.options });
+      continue;
+    }
+
+    if (!entry.family || (familyCounts.get(entry.family) || 0) <= 1) {
+      groups.push({ options: [entry.skill] });
+      continue;
+    }
+
+    if (emittedFamilies.has(entry.family)) continue;
+    emittedFamilies.add(entry.family);
+
+    const familyGroup = groupedFamilySkills.get(entry.family) || [entry.skill];
+    groups.push({ options: familyGroup });
+  }
+
+  return groups;
+}
+
+function matchesSkillInResume(skill, resumeLower, resumeSkillKeyText) {
+  const normalizedSkill = normalizeLower(skill);
+  const skillKey = toSkillKey(skill);
+  if (!skillKey) return false;
+
+  return (
+    (normalizedSkill && resumeLower.includes(normalizedSkill)) ||
+    (resumeSkillKeyText && resumeSkillKeyText.includes(skillKey))
+  );
+}
+
+function matchesSkill({ skill, profileSkillKeys, resumeLower, resumeSkillKeyText }) {
+  const skillKey = toSkillKey(skill);
+  if (!skillKey) return false;
+
+  if (profileSkillKeys.has(skillKey)) return true;
+  return matchesSkillInResume(skill, resumeLower, resumeSkillKeyText);
 }
 
 function parseNumber(value) {
@@ -51,8 +201,8 @@ function extractAge(text) {
 }
 
 export function evaluateJobEligibility({ job, student, resumeText }) {
-  const requiredSkills = normalizeSkills(job?.requiredSkills || []);
-  const profileSkills = normalizeSkills(student?.skills || []);
+  const requiredSkillGroups = buildRequiredSkillGroups(job?.requiredSkills || []);
+  const profileSkillKeys = normalizeProfileSkillKeys(student?.skills || []);
 
   const requiredDegree = normalizeString(job?.requiredDegree);
   const minAge = parseNumber(job?.minAge);
@@ -60,6 +210,7 @@ export function evaluateJobEligibility({ job, student, resumeText }) {
   const minExperienceYears = parseNumber(job?.minExperienceYears);
 
   const resumeLower = normalizeLower(resumeText);
+  const resumeSkillKeyText = toSkillKey(resumeText);
   const degreeText = [
     normalizeLower(student?.degree),
     normalizeLower(student?.education),
@@ -78,16 +229,36 @@ export function evaluateJobEligibility({ job, student, resumeText }) {
   );
   const experienceYears = experienceFromProfile ?? experienceFromText;
 
-  const matchedSkills = requiredSkills.filter(
-    (skill) => profileSkills.includes(skill) || resumeLower.includes(skill)
-  );
+  const matchedSkills = [];
+  const missingSkills = [];
+  let matchedSkillGroupCount = 0;
 
-  const missingSkills = requiredSkills.filter((skill) => !matchedSkills.includes(skill));
+  for (const group of requiredSkillGroups) {
+    const matchedOption = group.options.find((skill) =>
+      matchesSkill({
+        skill,
+        profileSkillKeys,
+        resumeLower,
+        resumeSkillKeyText,
+      })
+    );
+
+    if (matchedOption) {
+      matchedSkills.push(matchedOption);
+      matchedSkillGroupCount += 1;
+      continue;
+    }
+
+    missingSkills.push(
+      group.options.length > 1 ? `(${group.options.join(' or ')})` : group.options[0]
+    );
+  }
+
   const degreeMatched = requiredDegree ? degreeText.includes(normalizeLower(requiredDegree)) : true;
 
   const reasons = [];
 
-  if (requiredSkills.length && missingSkills.length) {
+  if (requiredSkillGroups.length && missingSkills.length) {
     reasons.push(`Missing required skills: ${missingSkills.join(', ')}`);
   }
 
@@ -112,10 +283,10 @@ export function evaluateJobEligibility({ job, student, resumeText }) {
 
   let score = 0;
 
-  if (requiredSkills.length > 0) {
-    score += Math.round((matchedSkills.length / requiredSkills.length) * 70);
+  if (requiredSkillGroups.length > 0) {
+    score += Math.round((matchedSkillGroupCount / requiredSkillGroups.length) * 70);
   } else {
-    score += Math.min(profileSkills.length * 5, 25);
+    score += Math.min(profileSkillKeys.size * 5, 25);
   }
 
   if (minExperienceYears != null) {
@@ -138,9 +309,11 @@ export function evaluateJobEligibility({ job, student, resumeText }) {
     score += 5;
   }
 
-  if (requiredSkills.length > 0 && resumeLower) {
-    const resumeMatches = requiredSkills.filter((skill) => resumeLower.includes(skill)).length;
-    score += Math.min(10, Math.round((resumeMatches / requiredSkills.length) * 10));
+  if (requiredSkillGroups.length > 0 && resumeLower) {
+    const resumeMatches = requiredSkillGroups.filter((group) =>
+      group.options.some((skill) => matchesSkillInResume(skill, resumeLower, resumeSkillKeyText))
+    ).length;
+    score += Math.min(10, Math.round((resumeMatches / requiredSkillGroups.length) * 10));
   }
 
   score = Math.max(0, Math.min(100, score));
@@ -152,7 +325,10 @@ export function evaluateJobEligibility({ job, student, resumeText }) {
     matchedSkills,
     missingSkills,
     details: {
-      requiredSkills,
+      requiredSkills: requiredSkillGroups.map((group) =>
+        group.options.length > 1 ? group.options.join(' or ') : group.options[0]
+      ),
+      requiredSkillGroups: requiredSkillGroups.map((group) => [...group.options]),
       requiredDegree,
       minAge,
       maxAge,

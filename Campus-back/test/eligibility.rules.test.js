@@ -73,3 +73,48 @@ test('evaluateJobEligibility uses experience years for ranking score', () => {
   assert.equal(higher.eligible, true);
   assert.ok(higher.score >= lower.score);
 });
+
+test('evaluateJobEligibility supports explicit one-of skill groups', () => {
+  const result = evaluateJobEligibility({
+    job: {
+      requiredSkills: ['django/express/node js', 'mysql/postgresql'],
+    },
+    student: {
+      skills: ['Express', 'PostgreSQL'],
+    },
+    resumeText: 'Built APIs and data models for internal tooling.',
+  });
+
+  assert.equal(result.eligible, true);
+  assert.equal(result.reasons.length, 0);
+});
+
+test('evaluateJobEligibility treats backend frameworks and databases as alternatives', () => {
+  const result = evaluateJobEligibility({
+    job: {
+      requiredSkills: ['django', 'express', 'node js', 'mysql', 'postgresql'],
+    },
+    student: {
+      skills: ['node.js', 'mysql'],
+    },
+    resumeText: 'Node.js backend with MySQL in production.',
+  });
+
+  assert.equal(result.eligible, true);
+  assert.equal(result.reasons.length, 0);
+});
+
+test('evaluateJobEligibility still requires unrelated skill items independently', () => {
+  const result = evaluateJobEligibility({
+    job: {
+      requiredSkills: ['React', 'TypeScript', 'Redux'],
+    },
+    student: {
+      skills: ['React', 'TypeScript'],
+    },
+    resumeText: 'Built dashboards with React and TypeScript.',
+  });
+
+  assert.equal(result.eligible, false);
+  assert.ok(result.reasons.some((item) => item.includes('Missing required skills')));
+});
