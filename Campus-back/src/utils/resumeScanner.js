@@ -1,6 +1,9 @@
 import { env } from '../config/env.js';
+import { readFile } from 'fs/promises';
+import path from 'path';
 
 const MAX_TEXT_LENGTH = 120_000;
+const UPLOADS_ROOT = path.resolve(process.cwd(), 'uploads');
 
 function resolveResumeUrl(resumeUrl) {
   const raw = String(resumeUrl || '').trim();
@@ -16,12 +19,39 @@ function resolveResumeUrl(resumeUrl) {
   return `${apiBase}${raw}`;
 }
 
+function resolveLocalResumePath(resumeUrl) {
+  const raw = String(resumeUrl || '').trim();
+  if (!raw) return '';
+
+  let sourcePath = raw;
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      sourcePath = new URL(raw).pathname || '';
+    } catch {
+      return '';
+    }
+  }
+
+  const normalized = sourcePath.replace(/^\/+/, '');
+  if (!normalized.startsWith('uploads/')) return '';
+
+  const absolutePath = path.resolve(process.cwd(), normalized);
+  const uploadsPrefix = `${UPLOADS_ROOT}${path.sep}`;
+  if (absolutePath !== UPLOADS_ROOT && !absolutePath.startsWith(uploadsPrefix)) return '';
+  return absolutePath;
+}
+
 function normalizeExtractedText(value) {
   return String(value || '')
     .replace(/\u0000/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, MAX_TEXT_LENGTH);
+}
+
+function isPdfDocument(contentType, sourceReference) {
+  const source = String(sourceReference || '');
+  return contentType.includes('pdf') || /\.pdf(\?|$)/i.test(source);
 }
 
 async function extractPdfText(buffer) {
@@ -35,7 +65,25 @@ async function extractPdfText(buffer) {
   }
 }
 
+async function extractTextFromBuffer(buffer, { contentType = '', sourceReference = '' } = {}) {
+  if (!buffer?.length) return '';
+  if (isPdfDocument(String(contentType || '').toLowerCase(), sourceReference)) {
+    return extractPdfText(buffer);
+  }
+  return normalizeExtractedText(buffer.toString('utf8'));
+}
+
 export async function extractResumeText(resumeUrl) {
+  const localPath = resolveLocalResumePath(resumeUrl);
+  if (localPath) {
+    try {
+      const buffer = await readFile(localPath);
+      return extractTextFromBuffer(buffer, { sourceReference: localPath });
+    } catch (error) {
+      console.warn('Failed to read local resume file:', error?.message || error);
+    }
+  }
+
   const resolvedUrl = resolveResumeUrl(resumeUrl);
   if (!resolvedUrl) return '';
 
@@ -46,13 +94,7 @@ export async function extractResumeText(resumeUrl) {
     const contentType = String(response.headers.get('content-type') || '').toLowerCase();
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    if (!buffer.length) return '';
-
-    if (contentType.includes('pdf') || /\.pdf(\?|$)/i.test(resolvedUrl)) {
-      return extractPdfText(buffer);
-    }
-
-    return normalizeExtractedText(buffer.toString('utf8'));
+    return extractTextFromBuffer(buffer, { contentType, sourceReference: resolvedUrl });
   } catch (error) {
     console.warn('Failed to fetch/scan resume text:', error?.message || error);
     return '';

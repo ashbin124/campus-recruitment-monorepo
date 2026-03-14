@@ -10,6 +10,16 @@ export const getAdminStats = async () => {
   }
 };
 
+export const getAdminSettings = async () => {
+  const { data } = await api.get('/admin/settings');
+  return data;
+};
+
+export const updateEligibilitySettings = async (payload) => {
+  const { data } = await api.put('/admin/settings/eligibility', payload);
+  return data;
+};
+
 export const getRecentUsers = async ({ limit = 50, search = '', role = '' } = {}) => {
   try {
     const { data } = await api.get('/admin/users', {

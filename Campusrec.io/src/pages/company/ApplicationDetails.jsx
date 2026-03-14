@@ -27,7 +27,6 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
     interviewDate: application.interviewDate || null,
     interviewStartTime: application.interviewStartTime || '',
     interviewQueueNumber: application.interviewQueueNumber || null,
-    waitlistRank: application.waitlistRank || null,
   });
   const [retryingEmail, setRetryingEmail] = useState(false);
   const [emailRetryAvailable, setEmailRetryAvailable] = useState(false);
@@ -44,7 +43,6 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
       interviewDate: application.interviewDate || null,
       interviewStartTime: application.interviewStartTime || '',
       interviewQueueNumber: application.interviewQueueNumber || null,
-      waitlistRank: application.waitlistRank || null,
     });
     setRetryingEmail(false);
     setEmailRetryAvailable(false);
@@ -67,7 +65,6 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
     application.interviewDate,
     application.interviewStartTime,
     application.interviewQueueNumber,
-    application.waitlistRank,
     application.job?.interviewDates,
   ]);
 
@@ -111,7 +108,6 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
           interviewDate: result.application.interviewDate || null,
           interviewStartTime: result.application.interviewStartTime || '',
           interviewQueueNumber: result.application.interviewQueueNumber || null,
-          waitlistRank: result.application.waitlistRank || null,
         });
       }
 
@@ -171,7 +167,6 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
   const getStatusBadge = (status) => {
     const statusMap = {
       PENDING: 'border-amber-200 bg-amber-100 text-amber-800',
-      WAITLIST: 'border-violet-200 bg-violet-100 text-violet-800',
       ACCEPTED: 'border-emerald-200 bg-emerald-100 text-emerald-800',
       INTERVIEW: 'border-brand-200 bg-brand-100 text-brand-800',
       APPROVED: 'border-emerald-200 bg-emerald-100 text-emerald-800',
@@ -352,35 +347,25 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
                 </div>
               </div>
 
-              {(currentStatus === 'INTERVIEW' || currentStatus === 'WAITLIST') && (
+              {currentStatus === 'INTERVIEW' && (
                 <div className="mb-6 surface-panel p-4">
                   <h4 className="mb-2 font-medium text-gray-900">Interview Assignment</h4>
-                  {currentStatus === 'INTERVIEW' ? (
-                    <div className="space-y-1 text-sm text-gray-700">
-                      <p>
-                        <span className="font-medium">Date:</span>{' '}
-                        {interviewSnapshot.interviewDate
-                          ? new Date(interviewSnapshot.interviewDate).toLocaleDateString()
-                          : '-'}
-                      </p>
-                      <p>
-                        <span className="font-medium">Start Time:</span>{' '}
-                        {interviewSnapshot.interviewStartTime || '-'}
-                      </p>
-                      <p>
-                        <span className="font-medium">Queue Number:</span>{' '}
-                        {interviewSnapshot.interviewQueueNumber || '-'}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-violet-800">
-                      Candidate is in waitlist
-                      {interviewSnapshot.waitlistRank
-                        ? ` (#${interviewSnapshot.waitlistRank})`
-                        : ''}
-                      .
+                  <div className="space-y-1 text-sm text-gray-700">
+                    <p>
+                      <span className="font-medium">Date:</span>{' '}
+                      {interviewSnapshot.interviewDate
+                        ? new Date(interviewSnapshot.interviewDate).toLocaleDateString()
+                        : '-'}
                     </p>
-                  )}
+                    <p>
+                      <span className="font-medium">Start Time:</span>{' '}
+                      {interviewSnapshot.interviewStartTime || '-'}
+                    </p>
+                    <p>
+                      <span className="font-medium">Queue Number:</span>{' '}
+                      {interviewSnapshot.interviewQueueNumber || '-'}
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -556,7 +541,6 @@ const ApplicationDetails = ({ application, onClose, onStatusChange }) => {
             )}
 
             {(currentStatus === 'PENDING' ||
-              currentStatus === 'WAITLIST' ||
               currentStatus === 'ACCEPTED' ||
               currentStatus === 'INTERVIEW') && (
               <button

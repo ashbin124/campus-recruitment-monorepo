@@ -16,6 +16,91 @@ import {
   markApplicationsReviewed,
 } from '@/lib/applicationReview.js';
 
+function parseSkillsText(value) {
+  return String(value || '')
+    .split(',')
+    .map((item) => String(item || '').trim())
+    .filter(Boolean);
+}
+
+function normalizeRequirementGroups(groups) {
+  if (!Array.isArray(groups)) return [];
+
+  return groups
+    .map((group) => {
+      const ruleType =
+        String(group?.ruleType || 'FLEXIBLE')
+          .trim()
+          .toUpperCase() === 'MANDATORY'
+          ? 'MANDATORY'
+          : 'FLEXIBLE';
+      const matchType =
+        String(group?.matchType || 'ANY')
+          .trim()
+          .toUpperCase() === 'ALL'
+          ? 'ALL'
+          : 'ANY';
+      const category =
+        String(group?.category || 'custom')
+          .trim()
+          .toLowerCase() || 'custom';
+      const skills = Array.isArray(group?.skills)
+        ? group.skills.map((item) => String(item || '').trim()).filter(Boolean)
+        : parseSkillsText(group?.skills);
+
+      const dedupedSkills = [...new Set(skills)];
+      if (!dedupedSkills.length) return null;
+
+      return {
+        category,
+        ruleType,
+        matchType,
+        skills: dedupedSkills,
+      };
+    })
+    .filter(Boolean);
+}
+
+function buildRequirementGroupsFromLegacy(mandatorySkillsText, requiredSkillsText) {
+  const mandatory = parseSkillsText(mandatorySkillsText).map((skill) => ({
+    category: 'custom',
+    ruleType: 'MANDATORY',
+    matchType: 'ANY',
+    skills: String(skill)
+      .split('/')
+      .map((part) => part.trim())
+      .filter(Boolean),
+  }));
+
+  const flexible = parseSkillsText(requiredSkillsText).map((skill) => ({
+    category: 'custom',
+    ruleType: 'FLEXIBLE',
+    matchType: 'ANY',
+    skills: String(skill)
+      .split('/')
+      .map((part) => part.trim())
+      .filter(Boolean),
+  }));
+
+  return normalizeRequirementGroups([...mandatory, ...flexible]);
+}
+
+function toLocalDateTimeInput(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const offsetMs = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function toIsoDateTime(value) {
+  const source = String(value || '').trim();
+  if (!source) return '';
+  const date = new Date(source);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString();
+}
+
 export default function CompanyDashboard() {
   const { user } = useAuth();
   const [title, setTitle] = useState('');
@@ -23,10 +108,13 @@ export default function CompanyDashboard() {
   const [description, setDescription] = useState('');
   const [mandatorySkills, setMandatorySkills] = useState('');
   const [requiredSkills, setRequiredSkills] = useState('');
+  const [requirementGroups, setRequirementGroups] = useState([]);
+  const [flexibleMatchThreshold, setFlexibleMatchThreshold] = useState('');
   const [requiredDegree, setRequiredDegree] = useState('');
   const [minAge, setMinAge] = useState('');
   const [maxAge, setMaxAge] = useState('');
   const [minExperienceYears, setMinExperienceYears] = useState('');
+  const [applicationDeadline, setApplicationDeadline] = useState('');
   const [interviewDates, setInterviewDates] = useState('');
   const [interviewStartTime, setInterviewStartTime] = useState('');
   const [interviewCandidatesPerDay, setInterviewCandidatesPerDay] = useState('');
@@ -58,7 +146,6 @@ export default function CompanyDashboard() {
 
   const appCounts = useMemo(() => {
     const pending = appsWithMeta.filter((item) => item.status === 'PENDING').length;
-    const waitlist = appsWithMeta.filter((item) => item.status === 'WAITLIST').length;
     const interview = appsWithMeta.filter((item) => item.status === 'INTERVIEW').length;
     const accepted = appsWithMeta.filter(
       (item) => item.status === 'ACCEPTED' || item.status === 'APPROVED'
@@ -68,7 +155,6 @@ export default function CompanyDashboard() {
       total: appsWithMeta.length,
       new: fresh,
       pending,
-      waitlist,
       interview,
       accepted,
     };
@@ -134,10 +220,13 @@ export default function CompanyDashboard() {
     setDescription('');
     setMandatorySkills('');
     setRequiredSkills('');
+    setRequirementGroups([]);
+    setFlexibleMatchThreshold('');
     setRequiredDegree('');
     setMinAge('');
     setMaxAge('');
     setMinExperienceYears('');
+    setApplicationDeadline('');
     setInterviewDates('');
     setInterviewStartTime('');
     setInterviewCandidatesPerDay('');
@@ -146,22 +235,22 @@ export default function CompanyDashboard() {
 
   async function saveJob(e) {
     e.preventDefault();
-    const mandatorySkillsList = String(mandatorySkills || '')
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean);
-    const requiredSkillsList = String(requiredSkills || '')
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean);
+    const mandatorySkillsList = parseSkillsText(mandatorySkills);
+    const requiredSkillsList = parseSkillsText(requiredSkills);
+    const normalizedGroups = normalizeRequirementGroups(requirementGroups);
+    const fallbackGroups = buildRequirementGroupsFromLegacy(mandatorySkills, requiredSkills);
+    const effectiveRequirementGroups = normalizedGroups.length ? normalizedGroups : fallbackGroups;
     const interviewDateList = String(interviewDates || '')
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean);
     const normalizedInterviewStartTime = String(interviewStartTime || '').trim();
+    const normalizedDeadlineIso = toIsoDateTime(applicationDeadline);
     const parsedCandidatesPerDay = Number.parseInt(String(interviewCandidatesPerDay || ''), 10);
+    const parsedFlexibleThreshold = String(flexibleMatchThreshold || '').trim();
 
     if (
+      !normalizedDeadlineIso ||
       interviewDateList.length === 0 ||
       !normalizedInterviewStartTime ||
       !Number.isInteger(parsedCandidatesPerDay) ||
@@ -169,7 +258,7 @@ export default function CompanyDashboard() {
     ) {
       setStatusNotice({
         type: 'error',
-        text: 'Interview automation needs dates, start time, and candidates per day.',
+        text: 'Set application deadline, interview dates, start time, and candidates per day.',
       });
       return;
     }
@@ -182,11 +271,27 @@ export default function CompanyDashboard() {
         location: String(location || '').trim(),
         mandatorySkills: mandatorySkillsList,
         requiredSkills: requiredSkillsList,
+        requirementGroups: effectiveRequirementGroups,
         requiredDegree: String(requiredDegree || '').trim(),
+        applicationDeadline: normalizedDeadlineIso,
         interviewDates: interviewDateList,
         interviewStartTime: normalizedInterviewStartTime,
         interviewCandidatesPerDay: parsedCandidatesPerDay,
       };
+
+      if (parsedFlexibleThreshold !== '') {
+        const value = Number.parseInt(parsedFlexibleThreshold, 10);
+        if (!Number.isInteger(value) || value < 0 || value > 100) {
+          setStatusNotice({
+            type: 'error',
+            text: 'Flexible threshold must be between 0 and 100.',
+          });
+          return;
+        }
+        payload.flexibleMatchThreshold = value;
+      } else if (isEditing) {
+        payload.flexibleMatchThreshold = null;
+      }
 
       if (minAge !== '') payload.minAge = Number(minAge);
       else if (isEditing) payload.minAge = null;
@@ -285,16 +390,33 @@ export default function CompanyDashboard() {
   }
 
   function startEditJob(job) {
+    const nextMandatorySkills = Array.isArray(job.mandatorySkills)
+      ? job.mandatorySkills.join(', ')
+      : '';
+    const nextRequiredSkills = Array.isArray(job.requiredSkills)
+      ? job.requiredSkills.join(', ')
+      : '';
+    const nextRequirementGroups = normalizeRequirementGroups(job?.requirementGroups);
+
     setEditingJobId(job.id);
     setTitle(job.title || '');
     setLocation(job.location || '');
     setDescription(job.description || '');
-    setMandatorySkills(Array.isArray(job.mandatorySkills) ? job.mandatorySkills.join(', ') : '');
-    setRequiredSkills(Array.isArray(job.requiredSkills) ? job.requiredSkills.join(', ') : '');
+    setMandatorySkills(nextMandatorySkills);
+    setRequiredSkills(nextRequiredSkills);
+    setRequirementGroups(
+      nextRequirementGroups.length
+        ? nextRequirementGroups
+        : buildRequirementGroupsFromLegacy(nextMandatorySkills, nextRequiredSkills)
+    );
+    setFlexibleMatchThreshold(
+      job.flexibleMatchThreshold != null ? String(job.flexibleMatchThreshold) : ''
+    );
     setRequiredDegree(job.requiredDegree || '');
     setMinAge(job.minAge != null ? String(job.minAge) : '');
     setMaxAge(job.maxAge != null ? String(job.maxAge) : '');
     setMinExperienceYears(job.minExperienceYears != null ? String(job.minExperienceYears) : '');
+    setApplicationDeadline(toLocalDateTimeInput(job.applicationDeadline));
     setInterviewDates(
       Array.isArray(job.interviewDates)
         ? job.interviewDates
@@ -371,10 +493,13 @@ export default function CompanyDashboard() {
               description={description}
               mandatorySkills={mandatorySkills}
               requiredSkills={requiredSkills}
+              requirementGroups={requirementGroups}
+              flexibleMatchThreshold={flexibleMatchThreshold}
               requiredDegree={requiredDegree}
               minAge={minAge}
               maxAge={maxAge}
               minExperienceYears={minExperienceYears}
+              applicationDeadline={applicationDeadline}
               interviewDates={interviewDates}
               interviewStartTime={interviewStartTime}
               interviewCandidatesPerDay={interviewCandidatesPerDay}
@@ -383,10 +508,13 @@ export default function CompanyDashboard() {
               onDescriptionChange={setDescription}
               onMandatorySkillsChange={setMandatorySkills}
               onRequiredSkillsChange={setRequiredSkills}
+              onRequirementGroupsChange={setRequirementGroups}
+              onFlexibleMatchThresholdChange={setFlexibleMatchThreshold}
               onRequiredDegreeChange={setRequiredDegree}
               onMinAgeChange={setMinAge}
               onMaxAgeChange={setMaxAge}
               onMinExperienceYearsChange={setMinExperienceYears}
+              onApplicationDeadlineChange={setApplicationDeadline}
               onInterviewDatesChange={setInterviewDates}
               onInterviewStartTimeChange={setInterviewStartTime}
               onInterviewCandidatesPerDayChange={setInterviewCandidatesPerDay}

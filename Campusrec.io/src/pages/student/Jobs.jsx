@@ -118,8 +118,32 @@ function buildRequirementRows(job) {
     rows.push(`Max age: ${job.maxAge}`);
   }
 
+  const flexibleThreshold = Number(job?.matchSummary?.flexibleMatchThresholdPercent);
+  const flexibleMatch = Number(job?.matchSummary?.flexibleMatchPercent);
+  if (Number.isFinite(flexibleThreshold)) {
+    if (Number.isFinite(flexibleMatch)) {
+      rows.push(`Flexible threshold: ${flexibleThreshold}% (current ${flexibleMatch}%)`);
+    } else {
+      rows.push(`Flexible threshold: ${flexibleThreshold}%`);
+    }
+  }
+
   return rows;
 }
+
+function getMatchTier(job) {
+  const tier = String(job?.matchSummary?.tier || '')
+    .trim()
+    .toUpperCase();
+  if (tier === 'ELIGIBLE' || tier === 'NEAR_MATCH' || tier === 'NOT_ELIGIBLE') return tier;
+  return job?.matchSummary?.eligible ? 'ELIGIBLE' : 'NOT_ELIGIBLE';
+}
+
+const MATCH_TABS = [
+  { id: 'ELIGIBLE', label: 'Eligible' },
+  { id: 'NEAR_MATCH', label: 'Near Match' },
+  { id: 'NOT_ELIGIBLE', label: 'Not Eligible' },
+];
 
 const Jobs = () => {
   const { user } = useAuth();
@@ -132,6 +156,7 @@ const Jobs = () => {
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
   const [companyIdFilter, setCompanyIdFilter] = useState('');
+  const [activeTierTab, setActiveTierTab] = useState('ELIGIBLE');
   const [loading, setLoading] = useState(false);
 
   const [showApplyModal, setShowApplyModal] = useState(false);
@@ -165,14 +190,22 @@ const Jobs = () => {
         .toLowerCase()
         .includes('remote')
     ).length;
-    const eligible = jobs.filter((job) => Boolean(job?.matchSummary?.eligible)).length;
+    const eligible = jobs.filter((job) => getMatchTier(job) === 'ELIGIBLE').length;
+    const nearMatch = jobs.filter((job) => getMatchTier(job) === 'NEAR_MATCH').length;
+    const notEligible = jobs.filter((job) => getMatchTier(job) === 'NOT_ELIGIBLE').length;
     return {
       total: jobs.length,
       remote,
       eligible,
+      nearMatch,
+      notEligible,
       filtered: hasActiveFilters,
     };
   }, [jobs, hasActiveFilters]);
+
+  const filteredJobs = useMemo(() => {
+    return jobs.filter((job) => getMatchTier(job) === activeTierTab);
+  }, [jobs, activeTierTab]);
 
   async function loadJobs(
     pTitle = title,
@@ -220,7 +253,14 @@ const Jobs = () => {
 
   const handleApplyClick = (job) => {
     if (!job?.matchSummary?.eligible) {
-      toast.warning('You cannot apply yet. Please meet the listed requirements first.');
+      const firstReason = Array.isArray(job?.matchSummary?.reasons)
+        ? job.matchSummary.reasons.find((item) => String(item || '').trim())
+        : '';
+      toast.warning(
+        firstReason
+          ? `You cannot apply yet. ${firstReason}`
+          : 'You cannot apply yet. Please meet the listed requirements first.'
+      );
       return;
     }
 
@@ -360,7 +400,7 @@ const Jobs = () => {
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3 text-sm md:w-max md:grid-cols-3">
+            <div className="mt-6 grid grid-cols-2 gap-3 text-sm md:w-max md:grid-cols-5">
               <div className="student-jobs-stat rounded-lg border border-white/20 bg-white/10 px-3 py-2">
                 {stats.total} total jobs
               </div>
@@ -368,8 +408,29 @@ const Jobs = () => {
                 {stats.remote} remote roles
               </div>
               <div className="student-jobs-stat rounded-lg border border-white/20 bg-white/10 px-3 py-2">
-                {stats.eligible} eligible for apply
+                {stats.eligible} eligible
               </div>
+              <div className="student-jobs-stat rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+                {stats.nearMatch} near match
+              </div>
+              <div className="student-jobs-stat rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+                {stats.notEligible} not eligible
+              </div>
+            </div>
+
+            <div className="mt-6 segmented-switch border-white/30 bg-white/10">
+              {MATCH_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTierTab(tab.id)}
+                  className={`segment-btn ${
+                    activeTierTab === tab.id ? 'segment-btn-active' : 'segment-btn-idle'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
           </div>
         </section>
@@ -387,9 +448,9 @@ const Jobs = () => {
                 </div>
               ))}
             </div>
-          ) : jobs.length > 0 ? (
+          ) : filteredJobs.length > 0 ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {jobs.map((job) => {
+              {filteredJobs.map((job) => {
                 const typeTheme = getJobTypeTheme(job.type);
                 const isRemoteRole = String(job.location || '')
                   .toLowerCase()
@@ -405,7 +466,14 @@ const Jobs = () => {
                       .map((item) => String(item || '').trim())
                       .filter(Boolean)
                   : [];
-                const isEligible = Boolean(job?.matchSummary?.eligible);
+                const eligibilityAdvisories = Array.isArray(job?.matchSummary?.advisories)
+                  ? job.matchSummary.advisories
+                      .map((item) => String(item || '').trim())
+                      .filter(Boolean)
+                  : [];
+                const tier = getMatchTier(job);
+                const isEligible = tier === 'ELIGIBLE';
+                const isNearMatch = tier === 'NEAR_MATCH';
 
                 return (
                   <article
@@ -457,10 +525,12 @@ const Jobs = () => {
                           className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
                             isEligible
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                              : 'border-rose-200 bg-rose-50 text-rose-700'
+                              : isNearMatch
+                                ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                : 'border-rose-200 bg-rose-50 text-rose-700'
                           }`}
                         >
-                          {isEligible ? 'Eligible' : 'Not eligible'}
+                          {isEligible ? 'Eligible' : isNearMatch ? 'Near match' : 'Not eligible'}
                         </span>
                       </div>
 
@@ -528,13 +598,39 @@ const Jobs = () => {
                           </p>
                         )}
                         {!isEligible && eligibilityReasons.length > 0 && (
-                          <div className="mt-2 rounded-md border border-rose-200 bg-rose-50 p-2">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">
-                              Why you cannot apply
+                          <div
+                            className={`mt-2 rounded-md border p-2 ${
+                              isNearMatch
+                                ? 'border-amber-200 bg-amber-50'
+                                : 'border-rose-200 bg-rose-50'
+                            }`}
+                          >
+                            <p
+                              className={`text-xs font-semibold uppercase tracking-wide ${
+                                isNearMatch ? 'text-amber-700' : 'text-rose-700'
+                              }`}
+                            >
+                              {isNearMatch ? 'Near match gap' : 'Why you cannot apply'}
                             </p>
-                            <ul className="mt-1 space-y-1 text-xs text-rose-800">
+                            <ul
+                              className={`mt-1 space-y-1 text-xs ${
+                                isNearMatch ? 'text-amber-800' : 'text-rose-800'
+                              }`}
+                            >
                               {eligibilityReasons.map((reason) => (
                                 <li key={`${job.id}-reason-${reason}`}>{reason}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {eligibilityAdvisories.length > 0 && (
+                          <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                              Skill insights
+                            </p>
+                            <ul className="mt-1 space-y-1 text-xs text-slate-700">
+                              {eligibilityAdvisories.map((reason) => (
+                                <li key={`${job.id}-advice-${reason}`}>{reason}</li>
                               ))}
                             </ul>
                           </div>
@@ -561,7 +657,7 @@ const Jobs = () => {
                           disabled={!isEligible}
                           className={`student-job-apply-btn inline-flex items-center justify-center rounded-lg bg-gradient-to-r px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 ${typeTheme.cta}`}
                         >
-                          {isEligible ? 'Apply Now' : 'Locked'}
+                          {isEligible ? 'Apply Now' : isNearMatch ? 'Near Match' : 'Locked'}
                         </button>
                       </div>
                     </div>
@@ -571,7 +667,15 @@ const Jobs = () => {
             </div>
           ) : (
             <div className="empty-shell">
-              <h3 className="text-lg font-semibold text-gray-900">No jobs found</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                No{' '}
+                {activeTierTab === 'ELIGIBLE'
+                  ? 'eligible'
+                  : activeTierTab === 'NEAR_MATCH'
+                    ? 'near-match'
+                    : 'not-eligible'}{' '}
+                jobs found
+              </h3>
               <p className="mt-1 text-sm text-gray-600">
                 No jobs match your current search filters. Try clearing filters and searching again.
               </p>
@@ -648,7 +752,7 @@ const Jobs = () => {
                       name="name"
                       value={applicationData.name}
                       onChange={handleInputChange}
-                      className={`w-full rounded-lg border bg-white p-3 text-[rgb(15,23,42)] caret-[rgb(15,23,42)] placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 ${
+                      className={`w-full rounded-lg border bg-white p-3 text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 ${
                         applyErrors.name ? 'border-red-300 bg-red-50/40' : 'border-gray-300'
                       }`}
                       required
@@ -665,7 +769,7 @@ const Jobs = () => {
                       name="email"
                       value={applicationData.email}
                       onChange={handleInputChange}
-                      className={`w-full rounded-lg border bg-white p-3 text-[rgb(15,23,42)] caret-[rgb(15,23,42)] placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 ${
+                      className={`w-full rounded-lg border bg-white p-3 text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 ${
                         applyErrors.email ? 'border-red-300 bg-red-50/40' : 'border-gray-300'
                       }`}
                       required
@@ -682,7 +786,7 @@ const Jobs = () => {
                       name="phone"
                       value={applicationData.phone}
                       onChange={handleInputChange}
-                      className={`w-full rounded-lg border bg-white p-3 text-[rgb(15,23,42)] caret-[rgb(15,23,42)] placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 ${
+                      className={`w-full rounded-lg border bg-white p-3 text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 ${
                         applyErrors.phone ? 'border-red-300 bg-red-50/40' : 'border-gray-300'
                       }`}
                       required

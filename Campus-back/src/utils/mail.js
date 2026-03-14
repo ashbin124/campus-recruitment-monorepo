@@ -70,6 +70,36 @@ export async function sendInterviewInvite(toEmail, studentName, companyName, job
   return sendEmail({ to: toEmail, subject, html, text });
 }
 
+export async function sendApplicationRejection(
+  toEmail,
+  studentName,
+  companyName,
+  jobTitle,
+  reason = ''
+) {
+  const subject = `Application Update: ${jobTitle} at ${companyName}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+      <h2>Application Status Update</h2>
+      <p>Hi ${studentName},</p>
+      <p>Your application for <strong>${jobTitle}</strong> at <strong>${companyName}</strong> was not shortlisted for interview this cycle.</p>
+      ${
+        reason
+          ? `<p><strong>Reason:</strong><br/>${escapeHtml(reason).replace(/\n/g, '<br/>')}</p>`
+          : ''
+      }
+      <p>You can continue applying for other opportunities in the platform.</p>
+      <p style="color:#6b7280; font-size:12px;">Sent on: ${new Date().toLocaleString()}</p>
+      <p>Best regards,<br/>${companyName} Talent Team</p>
+    </div>
+  `;
+  const text =
+    `Hi ${studentName},\nYour application for ${jobTitle} at ${companyName} was not shortlisted for interview this cycle.` +
+    `${reason ? `\nReason: ${reason}` : ''}` +
+    `\n\nYou can continue applying for other opportunities in the platform.\n\nSent on: ${new Date().toLocaleString()}`;
+  return sendEmail({ to: toEmail, subject, html, text });
+}
+
 function escapeHtml(str = '') {
   return String(str)
     .replace(/&/g, '&amp;')

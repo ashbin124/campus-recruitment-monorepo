@@ -1,6 +1,10 @@
 import { connectDB, disconnectDB } from './connection/prisma.js';
 import { createApp } from './app.js';
 import { env } from './config/env.js';
+import {
+  startDeadlineFinalizationWorker,
+  stopDeadlineFinalizationWorker,
+} from './services/interviewScheduler.js';
 import { logError, logInfo, serializeError } from './utils/logger.js';
 
 const PORT = env.PORT || 5000;
@@ -23,6 +27,7 @@ function registerProcessHandlers() {
     logInfo('Shutdown signal received', { signal });
 
     try {
+      stopDeadlineFinalizationWorker();
       if (httpServer) {
         await new Promise((resolve) => httpServer.close(resolve));
       }
@@ -42,6 +47,7 @@ function registerProcessHandlers() {
 async function startServer() {
   registerProcessHandlers();
   await connectDB();
+  startDeadlineFinalizationWorker();
   httpServer = app.listen(PORT, () => {
     logInfo('Server started', { port: PORT, nodeEnv: env.NODE_ENV });
   });

@@ -16,6 +16,23 @@ function toDateLabel(value) {
   }
 }
 
+function toDateTimeLabel(value) {
+  if (!value) return '';
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return '';
+  }
+}
+
+function isJobOpen(job) {
+  if (!job || job.isClosed) return false;
+  if (!job.applicationDeadline) return true;
+  const deadline = new Date(job.applicationDeadline).getTime();
+  if (!Number.isFinite(deadline)) return false;
+  return deadline > Date.now();
+}
+
 function getJobTypeTheme(value) {
   const normalized = String(value || 'FULL_TIME').toUpperCase();
 
@@ -79,13 +96,17 @@ function hasInterviewSchedule(job) {
 }
 
 export default function JobListingsPanel({ jobs, deletingJobId, onEdit, onRequestDelete }) {
+  const openJobs = jobs.filter((job) => isJobOpen(job)).length;
+
   return (
     <div className="section-shell">
       <div className="section-head border-b border-slate-200 pb-4">
         <div>
           <p className="section-kicker">Openings</p>
           <h3 className="section-title mt-2 text-xl">My Job Listings</h3>
-          <p className="section-description">{jobs.length} active listing(s)</p>
+          <p className="section-description">
+            {openJobs} open listing(s) / {jobs.length} total
+          </p>
         </div>
       </div>
 
@@ -96,6 +117,7 @@ export default function JobListingsPanel({ jobs, deletingJobId, onEdit, onReques
             .toLowerCase()
             .includes('remote');
           const scheduleReady = hasInterviewSchedule(job);
+          const jobOpen = isJobOpen(job);
 
           return (
             <article
@@ -127,6 +149,20 @@ export default function JobListingsPanel({ jobs, deletingJobId, onEdit, onReques
                         {toDateLabel(job.createdAt)}
                       </span>
                     )}
+                    {job.applicationDeadline && (
+                      <span className="inline-flex items-center gap-1.5 rounded-md border border-violet-200 bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-800">
+                        Deadline {toDateTimeLabel(job.applicationDeadline)}
+                      </span>
+                    )}
+                    <span
+                      className={`inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold ${
+                        jobOpen
+                          ? 'border-emerald-200 bg-emerald-100 text-emerald-800'
+                          : 'border-rose-200 bg-rose-100 text-rose-800'
+                      }`}
+                    >
+                      {jobOpen ? 'Open' : 'Closed'}
+                    </span>
                   </div>
                 </div>
                 <span className={`company-job-applicants status-pill ${typeTheme.applicants}`}>

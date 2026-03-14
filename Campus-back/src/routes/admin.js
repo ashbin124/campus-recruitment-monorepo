@@ -4,6 +4,10 @@ import { z } from 'zod';
 import prisma from '../connection/prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
+import {
+  getGlobalFlexibleThreshold,
+  setGlobalFlexibleThreshold,
+} from '../utils/platformSettings.js';
 
 const router = express.Router();
 
@@ -49,6 +53,9 @@ const createCompanyBodySchema = z.object({
   email: z.string().trim().email().max(254),
   password: z.string().min(6).max(128),
   website: z.string().trim().max(2048).optional(),
+});
+const eligibilitySettingsSchema = z.object({
+  flexibleThresholdDefaultPercent: z.coerce.number().int().min(0).max(100),
 });
 
 async function logAudit(db, { actorId, action, entityType, entityId = null, metadata = null }) {
@@ -110,6 +117,55 @@ router.get('/stats', authenticate, authorize('ADMIN'), async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch admin statistics' });
   }
 });
+
+router.get('/settings', authenticate, authorize('ADMIN'), async (req, res) => {
+  try {
+    const flexibleThresholdDefaultPercent = await getGlobalFlexibleThreshold(prisma);
+    return res.json({
+      eligibility: {
+        flexibleThresholdDefaultPercent,
+      },
+    });
+  } catch (error) {
+    console.error('Error in /settings endpoint:', error);
+    return res.status(500).json({ message: 'Failed to fetch settings' });
+  }
+});
+
+router.put(
+  '/settings/eligibility',
+  authenticate,
+  authorize('ADMIN'),
+  validate(eligibilitySettingsSchema),
+  async (req, res) => {
+    try {
+      const savedPercent = await setGlobalFlexibleThreshold(
+        req.body.flexibleThresholdDefaultPercent,
+        prisma
+      );
+
+      await logAudit(prisma, {
+        actorId: req.user.id,
+        action: 'UPDATE_ELIGIBILITY_SETTINGS',
+        entityType: 'PLATFORM_SETTING',
+        entityId: 'GLOBAL_FLEXIBLE_THRESHOLD_PERCENT',
+        metadata: {
+          flexibleThresholdDefaultPercent: savedPercent,
+        },
+      });
+
+      return res.json({
+        message: 'Eligibility settings updated',
+        eligibility: {
+          flexibleThresholdDefaultPercent: savedPercent,
+        },
+      });
+    } catch (error) {
+      console.error('Error updating eligibility settings:', error);
+      return res.status(500).json({ message: 'Failed to update eligibility settings' });
+    }
+  }
+);
 
 // Get recent users
 router.get('/users', authenticate, authorize('ADMIN'), async (req, res) => {

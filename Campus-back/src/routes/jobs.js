@@ -3,9 +3,12 @@ import { z } from 'zod';
 import prisma from '../connection/prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
-import { evaluateJobEligibility } from '../utils/eligibility.js';
+import { evaluateJobEligibility, normalizeRequirementGroups } from '../utils/eligibility.js';
 import { extractResumeText } from '../utils/resumeScanner.js';
-import { recomputeInterviewAssignmentsForJob } from '../services/interviewScheduler.js';
+import {
+  DEFAULT_NEAR_MATCH_WINDOW,
+  getGlobalFlexibleThreshold,
+} from '../utils/platformSettings.js';
 
 const router = express.Router();
 const jobTypeSchema = z.enum(['FULL_TIME', 'PART_TIME', 'INTERNSHIP', 'CONTRACT']);
@@ -32,10 +35,48 @@ function parseSkillsInput(value) {
   return [...new Set(rawValues.map((item) => String(item || '').trim()).filter(Boolean))];
 }
 
+function parseRequirementGroupsInput(value) {
+  let source = value;
+  if (typeof source === 'string') {
+    try {
+      source = JSON.parse(source);
+    } catch {
+      source = [];
+    }
+  }
+
+  return normalizeRequirementGroups(source);
+}
+
+function parsePercentOrNull(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number.parseInt(String(value), 10);
+  if (!Number.isInteger(parsed)) return null;
+  if (parsed < 0 || parsed > 100) return null;
+  return parsed;
+}
+
+function parseDateTimeInput(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const date = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
 function parseInterviewDatesInput(value) {
   const rawValues = Array.isArray(value) ? value : String(value || '').split(',');
   const dateKeys = [...new Set(rawValues.map((item) => toDateKey(item)).filter(Boolean))].sort();
   return dateKeys.map((dateKey) => new Date(`${dateKey}T00:00:00.000Z`));
+}
+
+function isDeadlineBeforeInterviewDates(deadline, interviewDates) {
+  if (!deadline || !Array.isArray(interviewDates) || interviewDates.length === 0) return true;
+  const deadlineKey = toDateKey(deadline);
+  if (!deadlineKey) return false;
+  return interviewDates.every((value) => {
+    const interviewKey = toDateKey(value);
+    return interviewKey ? interviewKey >= deadlineKey : false;
+  });
 }
 
 function normalizeInterviewSchedulePayload(payload) {
@@ -117,6 +158,20 @@ function parseJobPayload(body, { allowPartial = false } = {}) {
     body.requiredSkills !== undefined ? parseSkillsInput(body.requiredSkills) : undefined
   );
   assign(
+    'requirementGroups',
+    body.requirementGroups !== undefined
+      ? parseRequirementGroupsInput(body.requirementGroups)
+      : undefined
+  );
+  assign(
+    'flexibleMatchThreshold',
+    body.flexibleMatchThreshold === null
+      ? null
+      : body.flexibleMatchThreshold !== undefined && body.flexibleMatchThreshold !== ''
+        ? parsePercentOrNull(body.flexibleMatchThreshold)
+        : undefined
+  );
+  assign(
     'requiredDegree',
     body.requiredDegree !== undefined ? String(body.requiredDegree || '').trim() : undefined
   );
@@ -149,6 +204,12 @@ function parseJobPayload(body, { allowPartial = false } = {}) {
   assign('interviewDates', schedulePayload.interviewDates);
   assign('interviewStartTime', schedulePayload.interviewStartTime);
   assign('interviewCandidatesPerDay', schedulePayload.interviewCandidatesPerDay);
+  assign(
+    'applicationDeadline',
+    body.applicationDeadline !== undefined
+      ? parseDateTimeInput(body.applicationDeadline)
+      : undefined
+  );
 
   return payload;
 }
@@ -162,6 +223,13 @@ const listJobsQuerySchema = z.object({
   includeIneligible: z.string().trim().optional(),
 });
 
+const requirementGroupSchema = z.object({
+  category: z.string().trim().min(1).max(40).optional(),
+  ruleType: z.enum(['MANDATORY', 'FLEXIBLE']),
+  matchType: z.enum(['ANY', 'ALL']).optional(),
+  skills: z.union([z.array(z.string().trim().min(1).max(80)).min(1).max(30), z.string()]),
+});
+
 const createJobSchema = z.object({
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().min(1).max(4000),
@@ -169,6 +237,8 @@ const createJobSchema = z.object({
   type: jobTypeSchema.optional(),
   mandatorySkills: z.union([z.array(z.string().trim().min(1).max(80)), z.string()]).optional(),
   requiredSkills: z.union([z.array(z.string().trim().min(1).max(80)), z.string()]).optional(),
+  requirementGroups: z.union([z.array(requirementGroupSchema).max(60), z.string()]).optional(),
+  flexibleMatchThreshold: z.union([z.coerce.number().int().min(0).max(100), z.null()]).optional(),
   requiredDegree: z.string().trim().max(120).optional(),
   minAge: z.union([z.coerce.number().int().positive().max(120), z.null()]).optional(),
   maxAge: z.union([z.coerce.number().int().positive().max(120), z.null()]).optional(),
@@ -178,6 +248,7 @@ const createJobSchema = z.object({
   interviewCandidatesPerDay: z
     .union([z.coerce.number().int().positive().max(500), z.null()])
     .optional(),
+  applicationDeadline: z.union([z.string().trim().min(1), z.date()]),
 });
 
 const updateJobSchema = z
@@ -188,6 +259,8 @@ const updateJobSchema = z
     type: jobTypeSchema.optional(),
     mandatorySkills: z.union([z.array(z.string().trim().min(1).max(80)), z.string()]).optional(),
     requiredSkills: z.union([z.array(z.string().trim().min(1).max(80)), z.string()]).optional(),
+    requirementGroups: z.union([z.array(requirementGroupSchema).max(60), z.string()]).optional(),
+    flexibleMatchThreshold: z.union([z.coerce.number().int().min(0).max(100), z.null()]).optional(),
     requiredDegree: z.string().trim().max(120).optional(),
     minAge: z.union([z.coerce.number().int().positive().max(120), z.null()]).optional(),
     maxAge: z.union([z.coerce.number().int().positive().max(120), z.null()]).optional(),
@@ -197,6 +270,7 @@ const updateJobSchema = z
     interviewCandidatesPerDay: z
       .union([z.coerce.number().int().positive().max(500), z.null()])
       .optional(),
+    applicationDeadline: z.union([z.string().trim().min(1), z.date(), z.null()]).optional(),
   })
   .superRefine((value, ctx) => {
     if (!Object.keys(value || {}).length) {
@@ -208,8 +282,10 @@ const updateJobSchema = z
     }
   });
 
-function buildJobSearchWhere(query) {
+function buildJobSearchWhere(query, options = {}) {
   const { q, title, position, location, companyId } = query;
+  const onlyOpen = Boolean(options?.onlyOpen);
+  const now = new Date();
   const qValue = String(q || '').trim();
   const titleValue = String(title || '').trim();
   const positionValue = String(position || '').trim();
@@ -235,6 +311,16 @@ function buildJobSearchWhere(query) {
 
   return {
     AND: [
+      ...(onlyOpen
+        ? [
+            {
+              isClosed: false,
+            },
+            {
+              OR: [{ applicationDeadline: null }, { applicationDeadline: { gt: now } }],
+            },
+          ]
+        : []),
       textMatch,
       locationValue ? { location: { contains: locationValue, mode: 'insensitive' } } : {},
       typeof companyId === 'number' ? { companyId } : {},
@@ -245,7 +331,7 @@ function buildJobSearchWhere(query) {
 // GET /api/jobs - public list with filters
 router.get('/', validate(listJobsQuerySchema, 'query'), async (req, res) => {
   try {
-    const where = buildJobSearchWhere(req.query);
+    const where = buildJobSearchWhere(req.query, { onlyOpen: true });
     const jobs = await prisma.job.findMany({
       where,
       include: { company: { select: { id: true, name: true, userId: true } } },
@@ -274,7 +360,7 @@ router.get(
       });
       if (!student) return res.status(400).json({ message: 'Student profile missing' });
 
-      const where = buildJobSearchWhere(req.query);
+      const where = buildJobSearchWhere(req.query, { onlyOpen: true });
       const jobs = await prisma.job.findMany({
         where,
         include: { company: { select: { id: true, name: true, userId: true } } },
@@ -282,22 +368,41 @@ router.get(
       });
 
       const resumeText = await extractResumeText(student.resumeUrl);
+      const globalFlexibleThresholdPercent = await getGlobalFlexibleThreshold(prisma);
       const evaluatedJobs = jobs.map((job) => {
-        const evaluation = evaluateJobEligibility({ job, student, resumeText });
+        const evaluation = evaluateJobEligibility({
+          job,
+          student,
+          resumeText,
+          defaultFlexibleThresholdPercent: globalFlexibleThresholdPercent,
+          nearMatchWindowPercent: DEFAULT_NEAR_MATCH_WINDOW,
+          enforceResumeQuality: true,
+        });
         const scheduleConfigured = isInterviewScheduleConfigured(job);
         const reasons = [...evaluation.reasons];
         if (!scheduleConfigured) {
           reasons.push('Interview schedule is not configured by company yet');
         }
 
+        const eligible = evaluation.eligible && scheduleConfigured;
+        const nearMatch = Boolean(evaluation.nearMatch && !eligible && scheduleConfigured);
+        const tier = eligible ? 'ELIGIBLE' : nearMatch ? 'NEAR_MATCH' : 'NOT_ELIGIBLE';
+
         return {
           ...job,
           matchScore: evaluation.score,
           matchSummary: {
-            eligible: evaluation.eligible && scheduleConfigured,
+            eligible,
+            nearMatch,
+            tier,
             reasons,
+            advisories: evaluation.advisories,
             matchedSkills: evaluation.matchedSkills,
+            missingSkills: evaluation.missingSkills,
+            flexibleMatchPercent: evaluation.flexibleMatchPercent,
+            flexibleMatchThresholdPercent: evaluation.effectiveFlexibleThresholdPercent,
             scheduleConfigured,
+            details: evaluation.details,
           },
         };
       });
@@ -390,6 +495,18 @@ router.post(
             'Interview automation requires interview dates, start time (HH:mm), and candidates/day.',
         });
       }
+      if (!parsed.applicationDeadline) {
+        return res.status(400).json({
+          message: 'Application deadline is required.',
+        });
+      }
+      if (
+        !isDeadlineBeforeInterviewDates(parsed.applicationDeadline, parsed.interviewDates || [])
+      ) {
+        return res.status(400).json({
+          message: 'Interview dates must be on/after the application deadline.',
+        });
+      }
 
       const job = await prisma.job.create({
         data: {
@@ -399,6 +516,8 @@ router.post(
           type: parsed.type || 'FULL_TIME',
           mandatorySkills: parsed.mandatorySkills || [],
           requiredSkills: parsed.requiredSkills || [],
+          requirementGroups: parsed.requirementGroups || [],
+          flexibleMatchThreshold: parsed.flexibleMatchThreshold ?? null,
           requiredDegree: parsed.requiredDegree || null,
           minAge: parsed.minAge ?? null,
           maxAge: parsed.maxAge ?? null,
@@ -406,6 +525,10 @@ router.post(
           interviewDates: parsed.interviewDates || [],
           interviewStartTime: parsed.interviewStartTime || null,
           interviewCandidatesPerDay: parsed.interviewCandidatesPerDay ?? null,
+          applicationDeadline: parsed.applicationDeadline,
+          isClosed: false,
+          closedAt: null,
+          autoFinalizedAt: null,
           companyId: company.id,
         },
       });
@@ -468,6 +591,18 @@ router.put(
             'Interview automation requires interview dates, start time (HH:mm), and candidates/day.',
         });
       }
+      const effectiveDeadline =
+        parsed.applicationDeadline !== undefined
+          ? parsed.applicationDeadline
+          : existing.applicationDeadline;
+      if (effectiveDeadline == null) {
+        return res.status(400).json({ message: 'Application deadline is required.' });
+      }
+      if (!isDeadlineBeforeInterviewDates(effectiveDeadline, effectiveSchedule.interviewDates)) {
+        return res.status(400).json({
+          message: 'Interview dates must be on/after the application deadline.',
+        });
+      }
 
       const updateData = {
         ...(parsed.title !== undefined ? { title: parsed.title } : {}),
@@ -478,6 +613,12 @@ router.put(
           ? { mandatorySkills: parsed.mandatorySkills }
           : {}),
         ...(parsed.requiredSkills !== undefined ? { requiredSkills: parsed.requiredSkills } : {}),
+        ...(parsed.requirementGroups !== undefined
+          ? { requirementGroups: parsed.requirementGroups }
+          : {}),
+        ...(parsed.flexibleMatchThreshold !== undefined
+          ? { flexibleMatchThreshold: parsed.flexibleMatchThreshold ?? null }
+          : {}),
         ...(parsed.requiredDegree !== undefined
           ? { requiredDegree: parsed.requiredDegree || null }
           : {}),
@@ -493,16 +634,19 @@ router.put(
         ...(parsed.interviewCandidatesPerDay !== undefined
           ? { interviewCandidatesPerDay: parsed.interviewCandidatesPerDay ?? null }
           : {}),
+        ...(parsed.applicationDeadline !== undefined
+          ? {
+              applicationDeadline: parsed.applicationDeadline,
+              isClosed: false,
+              closedAt: null,
+              autoFinalizedAt: null,
+            }
+          : {}),
       };
 
       const updated = await prisma.job.update({
         where: { id },
         data: updateData,
-      });
-
-      await recomputeInterviewAssignmentsForJob(id, {
-        reason: 'JOB_UPDATED',
-        actorId: req.user.id,
       });
 
       return res.json(updated);

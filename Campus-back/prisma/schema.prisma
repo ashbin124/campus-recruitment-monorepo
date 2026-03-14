@@ -22,7 +22,6 @@ enum JobType {
 
 enum ApplicationStatus {
   PENDING
-  WAITLIST
   INTERVIEW
   ACCEPTED
   REJECTED
@@ -86,10 +85,16 @@ model Job {
   type         JobType        @default(FULL_TIME)
   mandatorySkills String[]    @default([])
   requiredSkills String[]     @default([])
+  requirementGroups Json?
+  flexibleMatchThreshold Int?
   requiredDegree String?
   minAge         Int?
   maxAge         Int?
   minExperienceYears Int?
+  applicationDeadline DateTime?
+  isClosed      Boolean        @default(false)
+  closedAt      DateTime?
+  autoFinalizedAt DateTime?
   interviewDates DateTime[]   @default([])
   interviewStartTime String?
   interviewCandidatesPerDay Int?
@@ -99,6 +104,7 @@ model Job {
   applications Application[]
 
   @@index([companyId, createdAt])
+  @@index([isClosed, applicationDeadline])
 }
 
 model Application {
@@ -111,7 +117,6 @@ model Application {
   interviewDate DateTime?
   interviewStartTime String?
   interviewQueueNumber Int?
-  waitlistRank Int?
   interviewNote String?
   manualInterviewOverride Boolean @default(false)
   createdAt DateTime          @default(now())
@@ -150,4 +155,12 @@ model Notification {
 
   @@index([userId, createdAt])
   @@index([userId, readAt])
+}
+
+model PlatformSetting {
+  key       String   @id
+  valueInt  Int?
+  valueJson Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

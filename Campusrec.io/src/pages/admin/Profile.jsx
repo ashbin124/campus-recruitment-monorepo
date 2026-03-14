@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../lib/api.js';
 import { useToast } from '@/context/ToastContext.jsx';
+import { getAdminSettings, updateEligibilitySettings } from '@/services/adminService.js';
 
 export default function AdminProfile() {
   const { user, setUser } = useAuth();
@@ -19,11 +20,43 @@ export default function AdminProfile() {
   const [pwd, setPwd] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [pwdSaving, setPwdSaving] = useState(false);
   const [pwdError, setPwdError] = useState('');
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState('');
+  const [flexibleThresholdDefaultPercent, setFlexibleThresholdDefaultPercent] = useState(40);
 
   useEffect(() => {
     setNameForm({ name: user?.name || '', email: user?.email || '' });
     setEmailForm({ email: user?.email || '' });
   }, [user]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadSettings() {
+      setSettingsLoading(true);
+      setSettingsError('');
+      try {
+        const data = await getAdminSettings();
+        if (!mounted) return;
+        const nextValue = Number(data?.eligibility?.flexibleThresholdDefaultPercent ?? 40);
+        setFlexibleThresholdDefaultPercent(
+          Number.isFinite(nextValue) ? Math.max(0, Math.min(100, Math.round(nextValue))) : 40
+        );
+      } catch (error) {
+        if (!mounted) return;
+        const message = error?.response?.data?.message || 'Failed to load platform settings';
+        setSettingsError(message);
+      } finally {
+        if (mounted) setSettingsLoading(false);
+      }
+    }
+
+    loadSettings();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const initials = (user?.name || 'A')
     .split(' ')
@@ -105,6 +138,32 @@ export default function AdminProfile() {
       toast.error(message);
     } finally {
       setPwdSaving(false);
+    }
+  };
+
+  const saveEligibilitySettings = async () => {
+    const parsed = Number.parseInt(String(flexibleThresholdDefaultPercent || ''), 10);
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed > 100) {
+      setSettingsError('Flexible threshold must be between 0 and 100.');
+      toast.warning('Flexible threshold must be between 0 and 100.');
+      return;
+    }
+
+    setSettingsSaving(true);
+    setSettingsError('');
+    try {
+      const data = await updateEligibilitySettings({
+        flexibleThresholdDefaultPercent: parsed,
+      });
+      const saved = Number(data?.eligibility?.flexibleThresholdDefaultPercent ?? parsed);
+      setFlexibleThresholdDefaultPercent(saved);
+      toast.success('Eligibility settings updated.');
+    } catch (error) {
+      const message = error?.response?.data?.message || 'Failed to update eligibility settings';
+      setSettingsError(message);
+      toast.error(message);
+    } finally {
+      setSettingsSaving(false);
     }
   };
 
@@ -272,6 +331,43 @@ export default function AdminProfile() {
                     onClick={savePassword}
                   >
                     {pwdSaving ? 'Saving...' : 'Update Password'}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section className="section-shell md:col-span-2">
+              <h2 className="section-title text-xl">Eligibility Settings</h2>
+              <p className="section-description mt-1">
+                Global default for flexible skill group threshold. Company can override this per
+                job.
+              </p>
+              {settingsError && <div className="mt-3 text-sm text-red-600">{settingsError}</div>}
+              <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,220px)_auto] sm:items-end">
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm text-gray-700">Flexible threshold default (%)</span>
+                  <input
+                    className="input-field"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={flexibleThresholdDefaultPercent}
+                    onChange={(event) => setFlexibleThresholdDefaultPercent(event.target.value)}
+                    disabled={settingsLoading || settingsSaving}
+                  />
+                </label>
+                <div className="flex">
+                  <button
+                    type="button"
+                    disabled={settingsLoading || settingsSaving}
+                    className={buttonPrimaryClass}
+                    onClick={saveEligibilitySettings}
+                  >
+                    {settingsLoading
+                      ? 'Loading...'
+                      : settingsSaving
+                        ? 'Saving...'
+                        : 'Save Eligibility Settings'}
                   </button>
                 </div>
               </div>

@@ -55,7 +55,6 @@ export default function Applications() {
       total: applicationsWithMeta.length,
       new: applicationsWithMeta.filter((item) => item.isNew).length,
       pending: applicationsWithMeta.filter((item) => item.status === 'PENDING').length,
-      waitlist: applicationsWithMeta.filter((item) => item.status === 'WAITLIST').length,
       interview: applicationsWithMeta.filter((item) => item.status === 'INTERVIEW').length,
       accepted: applicationsWithMeta.filter(
         (item) => item.status === 'ACCEPTED' || item.status === 'APPROVED'
@@ -206,7 +205,7 @@ export default function Applications() {
           Track incoming candidates, filter by stage, and keep hiring progress organized.
         </p>
 
-        <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-6">
+        <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-5">
           <div className="rounded-xl border border-white/20 bg-white/10 p-3">
             <p className="text-xs uppercase tracking-wide text-white/70">Total</p>
             <p className="mt-2 text-2xl font-semibold">{stats.total}</p>
@@ -218,10 +217,6 @@ export default function Applications() {
           <div className="rounded-xl border border-white/20 bg-white/10 p-3">
             <p className="text-xs uppercase tracking-wide text-white/70">Pending</p>
             <p className="mt-2 text-2xl font-semibold">{stats.pending}</p>
-          </div>
-          <div className="rounded-xl border border-white/20 bg-white/10 p-3">
-            <p className="text-xs uppercase tracking-wide text-white/70">Waitlist</p>
-            <p className="mt-2 text-2xl font-semibold">{stats.waitlist}</p>
           </div>
           <div className="rounded-xl border border-white/20 bg-white/10 p-3">
             <p className="text-xs uppercase tracking-wide text-white/70">Interview</p>
@@ -291,7 +286,6 @@ export default function Applications() {
           >
             <option value="ALL">All Reviewed Statuses</option>
             <option value="PENDING">PENDING</option>
-            <option value="WAITLIST">WAITLIST</option>
             <option value="INTERVIEW">INTERVIEW</option>
             <option value="ACCEPTED">ACCEPTED</option>
             <option value="APPROVED">APPROVED</option>

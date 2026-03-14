@@ -8,19 +8,16 @@ import { validate } from '../middleware/validate.js';
 import { evaluateJobEligibility } from '../utils/eligibility.js';
 import { extractResumeText } from '../utils/resumeScanner.js';
 import {
+  DEFAULT_NEAR_MATCH_WINDOW,
+  getGlobalFlexibleThreshold,
+} from '../utils/platformSettings.js';
+import {
+  isJobOpenForApplications,
   manualAssignApplicationToInterview,
-  recomputeInterviewAssignmentsForJob,
 } from '../services/interviewScheduler.js';
 
 const router = express.Router();
-const APPLICATION_STATUSES = [
-  'PENDING',
-  'WAITLIST',
-  'INTERVIEW',
-  'ACCEPTED',
-  'REJECTED',
-  'APPROVED',
-];
+const APPLICATION_STATUSES = ['PENDING', 'INTERVIEW', 'ACCEPTED', 'REJECTED', 'APPROVED'];
 const applicationStatusSchema = z.enum(APPLICATION_STATUSES);
 const EMAIL_LOG_ENTITY = 'APPLICATION_EMAIL';
 
@@ -236,6 +233,11 @@ router.post(
         },
       });
       if (!job) return res.status(404).json({ message: 'Job not found' });
+      if (!isJobOpenForApplications(job, new Date())) {
+        return res.status(400).json({
+          message: 'This job is closed for applications.',
+        });
+      }
       if (!hasInterviewSchedule(job)) {
         return res.status(400).json({
           message:
@@ -245,6 +247,7 @@ router.post(
 
       const { phone, resumeUrl } = req.body || {};
       let effectiveResumeUrl = student.resumeUrl;
+      let effectivePhone = student.phone;
 
       if (phone || resumeUrl) {
         const updatedStudent = await prisma.studentProfile.update({
@@ -255,9 +258,22 @@ router.post(
           },
         });
         effectiveResumeUrl = updatedStudent.resumeUrl;
+        effectivePhone = updatedStudent.phone;
+      }
+
+      if (!String(effectivePhone || '').trim()) {
+        return res.status(400).json({
+          message: 'Phone number is required to apply.',
+        });
+      }
+      if (!String(effectiveResumeUrl || '').trim()) {
+        return res.status(400).json({
+          message: 'Resume is required to apply.',
+        });
       }
 
       const resumeText = await extractResumeText(effectiveResumeUrl);
+      const globalFlexibleThresholdPercent = await getGlobalFlexibleThreshold(prisma);
       const evaluation = evaluateJobEligibility({
         job,
         student: {
@@ -265,13 +281,29 @@ router.post(
           resumeUrl: effectiveResumeUrl,
         },
         resumeText,
+        defaultFlexibleThresholdPercent: globalFlexibleThresholdPercent,
+        nearMatchWindowPercent: DEFAULT_NEAR_MATCH_WINDOW,
+        enforceResumeQuality: true,
       });
 
       if (!evaluation.eligible) {
         return res.status(400).json({
           message: 'You do not meet this job requirement.',
           reasons: evaluation.reasons,
+          advisories: evaluation.advisories,
           matchScore: evaluation.score,
+          matchSummary: {
+            eligible: evaluation.eligible,
+            nearMatch: evaluation.nearMatch,
+            tier: evaluation.tier,
+            reasons: evaluation.reasons,
+            advisories: evaluation.advisories,
+            matchedSkills: evaluation.matchedSkills,
+            missingSkills: evaluation.missingSkills,
+            flexibleMatchPercent: evaluation.flexibleMatchPercent,
+            flexibleMatchThresholdPercent: evaluation.effectiveFlexibleThresholdPercent,
+            details: evaluation.details,
+          },
         });
       }
 
@@ -283,17 +315,18 @@ router.post(
             status: 'PENDING',
             matchScore: evaluation.score,
             matchSummary: {
-              eligible: true,
-              reasons: [],
+              eligible: evaluation.eligible,
+              nearMatch: evaluation.nearMatch,
+              tier: evaluation.tier,
+              reasons: evaluation.reasons,
+              advisories: evaluation.advisories,
               matchedSkills: evaluation.matchedSkills,
+              missingSkills: evaluation.missingSkills,
+              flexibleMatchPercent: evaluation.flexibleMatchPercent,
+              flexibleMatchThresholdPercent: evaluation.effectiveFlexibleThresholdPercent,
               details: evaluation.details,
             },
           },
-        });
-
-        await recomputeInterviewAssignmentsForJob(jobId, {
-          reason: 'NEW_APPLICATION',
-          actorId: req.user.id,
         });
 
         const latest = await prisma.application.findUnique({
@@ -517,9 +550,6 @@ router.patch(
         updateData.interviewStartTime = null;
         updateData.interviewQueueNumber = null;
         updateData.interviewNote = note || currentApplication.interviewNote || null;
-        if (statusToPersist !== 'WAITLIST') {
-          updateData.waitlistRank = null;
-        }
       } else if (note) {
         updateData.interviewNote = note;
       }
@@ -572,17 +602,6 @@ router.patch(
             message: emailNotification.message,
             errorCode: emailNotification.errorCode,
           },
-        });
-      }
-
-      if (
-        statusToPersist === 'REJECTED' ||
-        statusToPersist === 'ACCEPTED' ||
-        statusToPersist === 'APPROVED'
-      ) {
-        await recomputeInterviewAssignmentsForJob(currentApplication.jobId, {
-          reason: 'STATUS_CHANGED',
-          actorId,
         });
       }
 

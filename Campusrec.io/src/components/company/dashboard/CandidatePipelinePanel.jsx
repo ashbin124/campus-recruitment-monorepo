@@ -12,7 +12,6 @@ import {
 
 function statusBadgeClass(status) {
   if (status === 'PENDING') return 'bg-amber-100 text-amber-800';
-  if (status === 'WAITLIST') return 'bg-violet-100 text-violet-800';
   if (status === 'INTERVIEW') return 'bg-blue-100 text-blue-800';
   if (status === 'ACCEPTED' || status === 'APPROVED') return 'bg-emerald-100 text-emerald-800';
   return 'bg-red-100 text-red-800';
@@ -139,59 +138,70 @@ export default function CandidatePipelinePanel({
         </div>
 
         <div className="max-h-[26rem] space-y-2 overflow-auto pr-1">
-          {queueItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`w-full cursor-pointer rounded-lg border p-3 text-left transition ${
-                activeQueue === 'new'
-                  ? 'border-sky-200 bg-white hover:border-sky-300'
-                  : 'border-gray-200 bg-white hover:border-brand-200 hover:bg-brand-50/30'
-              }`}
-              onClick={() => onSelectApp(item)}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="line-clamp-1 font-medium text-gray-900">
-                    {item?.job?.title || 'Untitled role'}
-                  </p>
-                  <div className="mt-1 flex items-center text-sm text-gray-600">
-                    <FiUser className="mr-1.5 h-4 w-4 text-gray-400" />
-                    <span className="line-clamp-1">
-                      {item?.student?.user?.name || 'Unknown candidate'}
-                    </span>
+          {queueItems.map((item) => {
+            const needsReview = Boolean(item?.matchSummary?.details?.needsReview);
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={`w-full cursor-pointer rounded-lg border p-3 text-left transition ${
+                  activeQueue === 'new'
+                    ? 'border-sky-200 bg-white hover:border-sky-300'
+                    : 'border-gray-200 bg-white hover:border-brand-200 hover:bg-brand-50/30'
+                }`}
+                onClick={() => onSelectApp(item)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="line-clamp-1 font-medium text-gray-900">
+                      {item?.job?.title || 'Untitled role'}
+                    </p>
+                    <div className="mt-1 flex items-center text-sm text-gray-600">
+                      <FiUser className="mr-1.5 h-4 w-4 text-gray-400" />
+                      <span className="line-clamp-1">
+                        {item?.student?.user?.name || 'Unknown candidate'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-1">
+                    {activeQueue === 'new' ? (
+                      <span className="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800">
+                        New
+                      </span>
+                    ) : (
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusBadgeClass(item.status)}`}
+                      >
+                        {statusLabel(item.status)}
+                      </span>
+                    )}
+                    {needsReview && (
+                      <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                        Needs review
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {activeQueue === 'new' ? (
-                  <span className="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800">
-                    New
+                <div className="mt-2 flex items-center justify-between gap-2 text-xs text-gray-500">
+                  <span className="line-clamp-1">{item?.student?.user?.email || '-'}</span>
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <FiCalendar className="h-3.5 w-3.5" />
+                    {formatDate(item.createdAt)}
                   </span>
-                ) : (
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusBadgeClass(item.status)}`}
-                  >
-                    {statusLabel(item.status)}
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-2 flex items-center justify-between gap-2 text-xs text-gray-500">
-                <span className="line-clamp-1">{item?.student?.user?.email || '-'}</span>
-                <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                  <FiCalendar className="h-3.5 w-3.5" />
-                  {formatDate(item.createdAt)}
-                </span>
-              </div>
-
-              {item?.student?.resumeUrl && (
-                <div className="mt-2 inline-flex items-center gap-1 text-xs text-gray-500">
-                  <FiDownload className="h-3.5 w-3.5" />
-                  Resume
                 </div>
-              )}
-            </button>
-          ))}
+
+                {item?.student?.resumeUrl && (
+                  <div className="mt-2 inline-flex items-center gap-1 text-xs text-gray-500">
+                    <FiDownload className="h-3.5 w-3.5" />
+                    Resume
+                  </div>
+                )}
+              </button>
+            );
+          })}
 
           {queueItems.length === 0 && (
             <div className="empty-shell px-3 py-6 text-xs">
