@@ -29,6 +29,7 @@ export default function JobFormPanel({
   onCancel,
 }) {
   const descriptionCount = String(description || '').trim().length;
+  const exampleToneClass = 'placeholder:text-slate-400/70';
 
   return (
     <div className="section-shell">
@@ -51,8 +52,8 @@ export default function JobFormPanel({
           <input
             value={title}
             onChange={(event) => onTitleChange(event.target.value)}
-            className="input-field"
-            placeholder="Senior Frontend Engineer"
+            className={`input-field ${exampleToneClass}`}
+            placeholder="eg: Senior Frontend Engineer"
             required
           />
         </label>
@@ -62,8 +63,8 @@ export default function JobFormPanel({
           <input
             value={location}
             onChange={(event) => onLocationChange(event.target.value)}
-            className="input-field"
-            placeholder="Bengaluru / Remote"
+            className={`input-field ${exampleToneClass}`}
+            placeholder="eg: Bengaluru / Remote"
           />
         </label>
 
@@ -75,9 +76,9 @@ export default function JobFormPanel({
           <textarea
             value={description}
             onChange={(event) => onDescriptionChange(event.target.value)}
-            className="textarea-field"
+            className={`textarea-field ${exampleToneClass}`}
             rows="5"
-            placeholder="Responsibilities, required skills, and expectations"
+            placeholder="eg: Responsibilities, required skills, and expectations"
             required
           />
         </label>
@@ -89,9 +90,9 @@ export default function JobFormPanel({
           <textarea
             value={requiredSkills}
             onChange={(event) => onRequiredSkillsChange(event.target.value)}
-            className="textarea-field"
+            className={`textarea-field ${exampleToneClass}`}
             rows="2"
-            placeholder="React, Node.js, PostgreSQL"
+            placeholder="eg: React, Node.js, PostgreSQL"
           />
         </label>
 
@@ -100,8 +101,8 @@ export default function JobFormPanel({
           <input
             value={requiredDegree}
             onChange={(event) => onRequiredDegreeChange(event.target.value)}
-            className="input-field"
-            placeholder="B.Tech Computer Science"
+            className={`input-field ${exampleToneClass}`}
+            placeholder="eg: B.Tech Computer Science"
           />
         </label>
 
@@ -112,8 +113,8 @@ export default function JobFormPanel({
             min="0"
             value={minExperienceYears}
             onChange={(event) => onMinExperienceYearsChange(event.target.value)}
-            className="input-field"
-            placeholder="2"
+            className={`input-field ${exampleToneClass}`}
+            placeholder="eg: 2"
           />
         </label>
 
@@ -124,8 +125,8 @@ export default function JobFormPanel({
             min="1"
             value={minAge}
             onChange={(event) => onMinAgeChange(event.target.value)}
-            className="input-field"
-            placeholder="21"
+            className={`input-field ${exampleToneClass}`}
+            placeholder="eg: 21"
           />
         </label>
 
@@ -136,8 +137,8 @@ export default function JobFormPanel({
             min="1"
             value={maxAge}
             onChange={(event) => onMaxAgeChange(event.target.value)}
-            className="input-field"
-            placeholder="30"
+            className={`input-field ${exampleToneClass}`}
+            placeholder="eg: 30"
           />
         </label>
 
@@ -148,9 +149,9 @@ export default function JobFormPanel({
           <textarea
             value={interviewDates}
             onChange={(event) => onInterviewDatesChange(event.target.value)}
-            className="textarea-field"
+            className={`textarea-field ${exampleToneClass}`}
             rows="2"
-            placeholder="2026-03-20, 2026-03-27, 2026-04-03"
+            placeholder="eg: 2026-03-20, 2026-03-27, 2026-04-03"
             required
           />
         </label>
@@ -161,9 +162,10 @@ export default function JobFormPanel({
             type="time"
             value={interviewStartTime}
             onChange={(event) => onInterviewStartTimeChange(event.target.value)}
-            className="input-field"
+            className={`input-field ${exampleToneClass}`}
             required
           />
+          <span className="text-xs text-slate-400">eg: 09:30</span>
         </label>
 
         <label className="flex flex-col gap-1">
@@ -173,8 +175,8 @@ export default function JobFormPanel({
             min="1"
             value={interviewCandidatesPerDay}
             onChange={(event) => onInterviewCandidatesPerDayChange(event.target.value)}
-            className="input-field"
-            placeholder="10"
+            className={`input-field ${exampleToneClass}`}
+            placeholder="eg: 10"
             required
           />
         </label>
