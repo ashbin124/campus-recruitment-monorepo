@@ -21,6 +21,7 @@ export default function CompanyDashboard() {
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
+  const [mandatorySkills, setMandatorySkills] = useState('');
   const [requiredSkills, setRequiredSkills] = useState('');
   const [requiredDegree, setRequiredDegree] = useState('');
   const [minAge, setMinAge] = useState('');
@@ -131,6 +132,7 @@ export default function CompanyDashboard() {
     setTitle('');
     setLocation('');
     setDescription('');
+    setMandatorySkills('');
     setRequiredSkills('');
     setRequiredDegree('');
     setMinAge('');
@@ -144,6 +146,10 @@ export default function CompanyDashboard() {
 
   async function saveJob(e) {
     e.preventDefault();
+    const mandatorySkillsList = String(mandatorySkills || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
     const requiredSkillsList = String(requiredSkills || '')
       .split(',')
       .map((item) => item.trim())
@@ -174,6 +180,7 @@ export default function CompanyDashboard() {
         title: String(title || '').trim(),
         description: String(description || '').trim(),
         location: String(location || '').trim(),
+        mandatorySkills: mandatorySkillsList,
         requiredSkills: requiredSkillsList,
         requiredDegree: String(requiredDegree || '').trim(),
         interviewDates: interviewDateList,
@@ -282,6 +289,7 @@ export default function CompanyDashboard() {
     setTitle(job.title || '');
     setLocation(job.location || '');
     setDescription(job.description || '');
+    setMandatorySkills(Array.isArray(job.mandatorySkills) ? job.mandatorySkills.join(', ') : '');
     setRequiredSkills(Array.isArray(job.requiredSkills) ? job.requiredSkills.join(', ') : '');
     setRequiredDegree(job.requiredDegree || '');
     setMinAge(job.minAge != null ? String(job.minAge) : '');
@@ -361,6 +369,7 @@ export default function CompanyDashboard() {
               title={title}
               location={location}
               description={description}
+              mandatorySkills={mandatorySkills}
               requiredSkills={requiredSkills}
               requiredDegree={requiredDegree}
               minAge={minAge}
@@ -372,6 +381,7 @@ export default function CompanyDashboard() {
               onTitleChange={setTitle}
               onLocationChange={setLocation}
               onDescriptionChange={setDescription}
+              onMandatorySkillsChange={setMandatorySkills}
               onRequiredSkillsChange={setRequiredSkills}
               onRequiredDegreeChange={setRequiredDegree}
               onMinAgeChange={setMinAge}

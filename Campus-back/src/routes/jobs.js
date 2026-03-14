@@ -109,6 +109,10 @@ function parseJobPayload(body, { allowPartial = false } = {}) {
       : undefined
   );
   assign(
+    'mandatorySkills',
+    body.mandatorySkills !== undefined ? parseSkillsInput(body.mandatorySkills) : undefined
+  );
+  assign(
     'requiredSkills',
     body.requiredSkills !== undefined ? parseSkillsInput(body.requiredSkills) : undefined
   );
@@ -163,6 +167,7 @@ const createJobSchema = z.object({
   description: z.string().trim().min(1).max(4000),
   location: z.string().trim().max(120).optional(),
   type: jobTypeSchema.optional(),
+  mandatorySkills: z.union([z.array(z.string().trim().min(1).max(80)), z.string()]).optional(),
   requiredSkills: z.union([z.array(z.string().trim().min(1).max(80)), z.string()]).optional(),
   requiredDegree: z.string().trim().max(120).optional(),
   minAge: z.union([z.coerce.number().int().positive().max(120), z.null()]).optional(),
@@ -181,6 +186,7 @@ const updateJobSchema = z
     description: z.string().trim().min(1).max(4000).optional(),
     location: z.string().trim().max(120).optional(),
     type: jobTypeSchema.optional(),
+    mandatorySkills: z.union([z.array(z.string().trim().min(1).max(80)), z.string()]).optional(),
     requiredSkills: z.union([z.array(z.string().trim().min(1).max(80)), z.string()]).optional(),
     requiredDegree: z.string().trim().max(120).optional(),
     minAge: z.union([z.coerce.number().int().positive().max(120), z.null()]).optional(),
@@ -391,6 +397,7 @@ router.post(
           description: parsed.description,
           location: parsed.location || null,
           type: parsed.type || 'FULL_TIME',
+          mandatorySkills: parsed.mandatorySkills || [],
           requiredSkills: parsed.requiredSkills || [],
           requiredDegree: parsed.requiredDegree || null,
           minAge: parsed.minAge ?? null,
@@ -467,6 +474,9 @@ router.put(
         ...(parsed.description !== undefined ? { description: parsed.description } : {}),
         ...(parsed.location !== undefined ? { location: parsed.location || null } : {}),
         ...(parsed.type !== undefined ? { type: parsed.type || existing.type } : {}),
+        ...(parsed.mandatorySkills !== undefined
+          ? { mandatorySkills: parsed.mandatorySkills }
+          : {}),
         ...(parsed.requiredSkills !== undefined ? { requiredSkills: parsed.requiredSkills } : {}),
         ...(parsed.requiredDegree !== undefined
           ? { requiredDegree: parsed.requiredDegree || null }

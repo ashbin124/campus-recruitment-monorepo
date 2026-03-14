@@ -88,12 +88,18 @@ function getJobTypeTheme(value) {
 
 function buildRequirementRows(job) {
   const rows = [];
+  const mandatorySkills = Array.isArray(job?.mandatorySkills)
+    ? job.mandatorySkills.map((item) => String(item || '').trim()).filter(Boolean)
+    : [];
   const requiredSkills = Array.isArray(job?.requiredSkills)
     ? job.requiredSkills.map((item) => String(item || '').trim()).filter(Boolean)
     : [];
 
+  if (mandatorySkills.length) {
+    rows.push(`Compulsory skills: ${mandatorySkills.join(', ')}`);
+  }
   if (requiredSkills.length) {
-    rows.push(`Skills: ${requiredSkills.join(', ')}`);
+    rows.push(`Flexible skill pool: ${requiredSkills.join(', ')}`);
   }
   if (job?.requiredDegree) {
     rows.push(`Degree: ${job.requiredDegree}`);

@@ -84,6 +84,18 @@ function parseSkillAlternatives(value) {
   return dedupeSkills(source.split(/\s*(?:\/|\||\bor\b)\s*/i));
 }
 
+function buildMandatorySkillGroups(rawSkills) {
+  const groups = [];
+
+  for (const rawSkill of Array.isArray(rawSkills) ? rawSkills : []) {
+    const alternatives = parseSkillAlternatives(rawSkill);
+    if (!alternatives.length) continue;
+    groups.push({ options: alternatives });
+  }
+
+  return groups;
+}
+
 function buildRequiredSkillGroups(rawSkills) {
   const parsedEntries = [];
   const familyCounts = new Map();
@@ -145,6 +157,32 @@ function buildRequiredSkillGroups(rawSkills) {
   return groups;
 }
 
+function evaluateSkillGroups(groups, matcher) {
+  const matchedSkills = [];
+  const missingSkills = [];
+  let matchedGroupCount = 0;
+
+  for (const group of groups) {
+    const matchedOption = group.options.find((skill) => matcher(skill));
+
+    if (matchedOption) {
+      matchedSkills.push(matchedOption);
+      matchedGroupCount += 1;
+      continue;
+    }
+
+    missingSkills.push(
+      group.options.length > 1 ? `(${group.options.join(' or ')})` : group.options[0]
+    );
+  }
+
+  return {
+    matchedSkills: dedupeSkills(matchedSkills),
+    missingSkills,
+    matchedGroupCount,
+  };
+}
+
 function matchesSkillInResume(skill, resumeLower, resumeSkillKeyText) {
   const normalizedSkill = normalizeLower(skill);
   const skillKey = toSkillKey(skill);
@@ -201,6 +239,7 @@ function extractAge(text) {
 }
 
 export function evaluateJobEligibility({ job, student, resumeText }) {
+  const mandatorySkillGroups = buildMandatorySkillGroups(job?.mandatorySkills || []);
   const requiredSkillGroups = buildRequiredSkillGroups(job?.requiredSkills || []);
   const profileSkillKeys = normalizeProfileSkillKeys(student?.skills || []);
 
@@ -229,37 +268,35 @@ export function evaluateJobEligibility({ job, student, resumeText }) {
   );
   const experienceYears = experienceFromProfile ?? experienceFromText;
 
-  const matchedSkills = [];
-  const missingSkills = [];
-  let matchedSkillGroupCount = 0;
+  const skillMatcher = (skill) =>
+    matchesSkill({
+      skill,
+      profileSkillKeys,
+      resumeLower,
+      resumeSkillKeyText,
+    });
 
-  for (const group of requiredSkillGroups) {
-    const matchedOption = group.options.find((skill) =>
-      matchesSkill({
-        skill,
-        profileSkillKeys,
-        resumeLower,
-        resumeSkillKeyText,
-      })
-    );
+  const mandatoryMatch = evaluateSkillGroups(mandatorySkillGroups, skillMatcher);
+  const requiredMatch = evaluateSkillGroups(requiredSkillGroups, skillMatcher);
 
-    if (matchedOption) {
-      matchedSkills.push(matchedOption);
-      matchedSkillGroupCount += 1;
-      continue;
-    }
-
-    missingSkills.push(
-      group.options.length > 1 ? `(${group.options.join(' or ')})` : group.options[0]
-    );
-  }
+  const matchedSkills = dedupeSkills([
+    ...mandatoryMatch.matchedSkills,
+    ...requiredMatch.matchedSkills,
+  ]);
+  const missingSkills = [...mandatoryMatch.missingSkills, ...requiredMatch.missingSkills];
+  const totalSkillGroups = mandatorySkillGroups.length + requiredSkillGroups.length;
+  const matchedSkillGroupCount = mandatoryMatch.matchedGroupCount + requiredMatch.matchedGroupCount;
 
   const degreeMatched = requiredDegree ? degreeText.includes(normalizeLower(requiredDegree)) : true;
 
   const reasons = [];
 
-  if (requiredSkillGroups.length && missingSkills.length) {
-    reasons.push(`Missing required skills: ${missingSkills.join(', ')}`);
+  if (mandatorySkillGroups.length && mandatoryMatch.missingSkills.length) {
+    reasons.push(`Missing compulsory skills: ${mandatoryMatch.missingSkills.join(', ')}`);
+  }
+
+  if (requiredSkillGroups.length && requiredMatch.missingSkills.length) {
+    reasons.push(`Missing required skills: ${requiredMatch.missingSkills.join(', ')}`);
   }
 
   if (requiredDegree && !degreeMatched) {
@@ -283,8 +320,8 @@ export function evaluateJobEligibility({ job, student, resumeText }) {
 
   let score = 0;
 
-  if (requiredSkillGroups.length > 0) {
-    score += Math.round((matchedSkillGroupCount / requiredSkillGroups.length) * 70);
+  if (totalSkillGroups > 0) {
+    score += Math.round((matchedSkillGroupCount / totalSkillGroups) * 70);
   } else {
     score += Math.min(profileSkillKeys.size * 5, 25);
   }
@@ -309,11 +346,12 @@ export function evaluateJobEligibility({ job, student, resumeText }) {
     score += 5;
   }
 
-  if (requiredSkillGroups.length > 0 && resumeLower) {
-    const resumeMatches = requiredSkillGroups.filter((group) =>
+  if (totalSkillGroups > 0 && resumeLower) {
+    const allSkillGroups = [...mandatorySkillGroups, ...requiredSkillGroups];
+    const resumeMatches = allSkillGroups.filter((group) =>
       group.options.some((skill) => matchesSkillInResume(skill, resumeLower, resumeSkillKeyText))
     ).length;
-    score += Math.min(10, Math.round((resumeMatches / requiredSkillGroups.length) * 10));
+    score += Math.min(10, Math.round((resumeMatches / allSkillGroups.length) * 10));
   }
 
   score = Math.max(0, Math.min(100, score));
@@ -325,6 +363,10 @@ export function evaluateJobEligibility({ job, student, resumeText }) {
     matchedSkills,
     missingSkills,
     details: {
+      mandatorySkills: mandatorySkillGroups.map((group) =>
+        group.options.length > 1 ? group.options.join(' or ') : group.options[0]
+      ),
+      mandatorySkillGroups: mandatorySkillGroups.map((group) => [...group.options]),
       requiredSkills: requiredSkillGroups.map((group) =>
         group.options.length > 1 ? group.options.join(' or ') : group.options[0]
       ),

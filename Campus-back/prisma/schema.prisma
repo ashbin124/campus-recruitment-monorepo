@@ -84,6 +84,7 @@ model Job {
   description  String
   location     String?
   type         JobType        @default(FULL_TIME)
+  mandatorySkills String[]    @default([])
   requiredSkills String[]     @default([])
   requiredDegree String?
   minAge         Int?

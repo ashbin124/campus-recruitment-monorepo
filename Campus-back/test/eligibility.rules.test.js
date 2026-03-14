@@ -118,3 +118,19 @@ test('evaluateJobEligibility still requires unrelated skill items independently'
   assert.equal(result.eligible, false);
   assert.ok(result.reasons.some((item) => item.includes('Missing required skills')));
 });
+
+test('evaluateJobEligibility enforces mandatory skills separately', () => {
+  const result = evaluateJobEligibility({
+    job: {
+      mandatorySkills: ['Git', 'Communication'],
+      requiredSkills: ['django/express/node js', 'mysql/postgresql'],
+    },
+    student: {
+      skills: ['Express', 'PostgreSQL', 'Git'],
+    },
+    resumeText: 'Built APIs using Express and PostgreSQL.',
+  });
+
+  assert.equal(result.eligible, false);
+  assert.ok(result.reasons.some((item) => item.includes('Missing compulsory skills')));
+});
