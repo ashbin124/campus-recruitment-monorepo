@@ -38,7 +38,7 @@ jobs:
       DISABLE_RATE_LIMIT: 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -67,7 +67,7 @@ jobs:
         working-directory: Campusrec.io
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
         uses: actions/setup-node@v4
